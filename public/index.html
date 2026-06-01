@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>갤러리 스크롤러</title>
+  <title>필름 갤러리 스크롤러</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -16,7 +16,6 @@
       user-select: none;
     }
 
-    /* ── Shorts viewer ── */
     #viewer {
       position: fixed;
       inset: 0;
@@ -34,6 +33,7 @@
       justify-content: center;
       transition: transform 0.38s cubic-bezier(.4,0,.2,1);
       will-change: transform;
+      background: #000;
     }
 
     .slide img {
@@ -44,25 +44,36 @@
       pointer-events: none;
     }
 
-    /* caption bar */
     .slide-caption {
       position: absolute;
       bottom: 0; left: 0; right: 0;
-      padding: 48px 20px 20px;
-      background: linear-gradient(transparent, rgba(0,0,0,0.7));
-      font-size: 0.9rem;
-      color: #ddd;
+      padding: 60px 20px 24px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.75));
     }
-    .slide-caption .title { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
-    .slide-caption .meta { font-size: 0.78rem; color: #999; }
+    .slide-caption .title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .slide-caption .meta {
+      font-size: 0.78rem;
+      color: #aaa;
+      text-decoration: none;
+    }
+    .slide-caption .meta:hover { color: #fff; }
 
-    /* loading slide */
-    .slide-loading {
+    .slide-center {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 16px;
       color: #666;
+      text-align: center;
+      padding: 20px;
     }
     .spinner {
       width: 40px; height: 40px;
@@ -73,42 +84,29 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* error slide */
-    .slide-error { color: #e74c3c; text-align: center; padding: 20px; font-size: 0.9rem; }
+    .error-text { color: #e74c3c; font-size: 0.9rem; max-width: 300px; line-height: 1.6; }
 
-    /* ── Progress dots ── */
-    #dots {
-      position: fixed;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      z-index: 50;
-    }
-    .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.3);
-      transition: background 0.2s, transform 0.2s;
-    }
-    .dot.active { background: #fff; transform: scale(1.5); }
-
-    /* ── Top HUD ── */
+    /* Top HUD */
     #hud {
       position: fixed;
       top: 0; left: 0; right: 0;
-      padding: 16px 18px;
+      padding: 14px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: linear-gradient(rgba(0,0,0,0.5), transparent);
+      background: linear-gradient(rgba(0,0,0,0.55), transparent);
       z-index: 50;
     }
-    #hud h1 { font-size: 1rem; font-weight: 600; }
-
-    .hud-actions { display: flex; gap: 10px; align-items: center; }
+    .hud-left { display: flex; align-items: center; gap: 10px; }
+    #hud h1 { font-size: 1rem; font-weight: 700; }
+    .subreddit-badge {
+      background: rgba(255,69,0,0.85);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+    }
 
     .icon-btn {
       background: rgba(255,255,255,0.12);
@@ -116,7 +114,7 @@
       color: #fff;
       width: 38px; height: 38px;
       border-radius: 50%;
-      font-size: 1.1rem;
+      font-size: 1rem;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
@@ -124,72 +122,110 @@
     }
     .icon-btn:hover { background: rgba(255,255,255,0.22); }
 
-    /* site label */
-    #siteLabel {
+    /* Sort tabs */
+    #sortBar {
       position: fixed;
-      top: 60px; left: 18px;
-      font-size: 0.78rem;
-      color: rgba(255,255,255,0.5);
+      top: 58px; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
       z-index: 50;
+      padding: 0 18px;
+    }
+    .sort-tab {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #ccc;
+      font-size: 0.78rem;
+      padding: 5px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: background 0.2s, color 0.2s;
+    }
+    .sort-tab.active {
+      background: #fff;
+      color: #000;
+      font-weight: 600;
     }
 
-    /* counter */
+    /* Counter */
     #counter {
       position: fixed;
-      bottom: 80px; right: 18px;
-      font-size: 0.8rem;
-      color: rgba(255,255,255,0.5);
+      bottom: 80px; right: 16px;
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.45);
       z-index: 50;
     }
 
-    /* nav arrows (desktop) */
+    /* Progress dots */
+    #dots {
+      position: fixed;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 50;
+    }
+    .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .dot.active { background: #fff; transform: scale(1.6); }
+
+    /* Nav arrows (desktop) */
     .nav-arrow {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
       z-index: 50;
-      background: rgba(255,255,255,0.1);
-      border: none;
-      color: #fff;
-      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.08);
+      border: none; color: #fff;
+      width: 40px; height: 40px;
       border-radius: 50%;
-      font-size: 1.3rem;
+      font-size: 1.1rem;
       cursor: pointer;
       backdrop-filter: blur(4px);
       transition: background 0.2s;
       display: flex; align-items: center; justify-content: center;
     }
-    .nav-arrow:hover { background: rgba(255,255,255,0.22); }
-    #arrowUp { top: 14px; }
+    .nav-arrow:hover { background: rgba(255,255,255,0.2); }
+    #arrowUp   { top: 110px; }
     #arrowDown { bottom: 14px; }
 
-    /* ── Side panel (site list) ── */
+    /* Side panel */
     #panel {
       position: fixed;
       top: 0; right: -360px;
-      width: 340px;
-      height: 100%;
+      width: 340px; height: 100%;
       background: #111;
       border-left: 1px solid #222;
       z-index: 200;
       transition: right 0.3s ease;
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column;
     }
     #panel.open { right: 0; }
+    #panel-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 199;
+    }
+    #panel-overlay.open { display: block; }
 
     #panel-header {
       padding: 20px 18px 14px;
       border-bottom: 1px solid #222;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between;
     }
     #panel-header h2 { font-size: 1rem; }
-
     #panel-body { flex: 1; overflow-y: auto; padding: 14px; }
 
-    .site-card {
+    .sub-card {
       background: #1c1c1c;
       border: 1px solid #2a2a2a;
       border-radius: 10px;
@@ -198,94 +234,76 @@
       cursor: pointer;
       transition: border-color 0.2s;
     }
-    .site-card:hover { border-color: #555; }
-    .site-card.active { border-color: #3a7bd5; }
-    .site-card .sc-name { font-size: 0.9rem; font-weight: 500; }
-    .site-card .sc-id { font-size: 0.75rem; color: #666; margin-top: 3px; }
-    .site-card-actions {
-      display: flex; gap: 6px; margin-top: 10px;
-    }
+    .sub-card:hover { border-color: #555; }
+    .sub-card.active { border-color: #ff4500; }
+    .sub-card .sc-name { font-size: 0.9rem; font-weight: 600; }
+    .sub-card .sc-desc { font-size: 0.75rem; color: #666; margin-top: 3px; }
+    .sub-card-actions { display: flex; gap: 6px; margin-top: 10px; }
 
     .btn {
       border: none; cursor: pointer;
       border-radius: 6px; font-size: 0.8rem;
       padding: 5px 12px; transition: background 0.2s;
     }
-    .btn-primary { background: #3a7bd5; color: #fff; }
-    .btn-primary:hover { background: #2f65b8; }
+    .btn-primary { background: #ff4500; color: #fff; }
+    .btn-primary:hover { background: #e03d00; }
     .btn-secondary { background: #2a2a2a; color: #ccc; }
     .btn-secondary:hover { background: #333; }
     .btn-danger { background: #c0392b; color: #fff; }
     .btn-danger:hover { background: #a93226; }
     .btn-full { width: 100%; padding: 9px; margin-top: 4px; }
 
-    /* panel overlay */
-    #panel-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 199;
-    }
-    #panel-overlay.open { display: block; }
-
-    /* ── Modal ── */
+    /* Modal */
     .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
+      display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.85);
-      z-index: 300;
-      align-items: center;
-      justify-content: center;
+      z-index: 300; align-items: center; justify-content: center;
     }
     .modal-overlay.open { display: flex; }
     .modal {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 14px;
-      padding: 28px;
-      width: 90%;
-      max-width: 420px;
+      background: #1a1a1a; border: 1px solid #333;
+      border-radius: 14px; padding: 28px;
+      width: 90%; max-width: 400px;
     }
     .modal h2 { margin-bottom: 20px; font-size: 1rem; }
-    .form-group { margin-bottom: 15px; }
+    .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 0.8rem; color: #999; margin-bottom: 6px; }
     .form-group input, .form-group select {
-      width: 100%;
-      background: #242424;
-      border: 1px solid #3a3a3a;
-      color: #eee;
-      padding: 9px 12px;
-      border-radius: 8px;
-      font-size: 0.9rem;
+      width: 100%; background: #242424; border: 1px solid #3a3a3a;
+      color: #eee; padding: 9px 12px; border-radius: 8px; font-size: 0.9rem;
     }
+    .form-hint { font-size: 0.75rem; color: #666; margin-top: 5px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
   </style>
 </head>
 <body>
 
-<!-- Top HUD -->
+<!-- HUD -->
 <div id="hud">
-  <h1>📷 갤러리 스크롤러</h1>
-  <div class="hud-actions">
-    <button class="icon-btn" title="사이트 관리" onclick="openPanel()">☰</button>
+  <div class="hud-left">
+    <h1>📷</h1>
+    <span class="subreddit-badge" id="subredditBadge">r/analog</span>
   </div>
+  <button class="icon-btn" onclick="openPanel()">☰</button>
 </div>
-<div id="siteLabel"></div>
+
+<!-- Sort tabs -->
+<div id="sortBar">
+  <button class="sort-tab active" data-sort="hot">🔥 hot</button>
+  <button class="sort-tab" data-sort="new">🆕 new</button>
+  <button class="sort-tab" data-sort="top">👑 top</button>
+</div>
 
 <!-- Viewer -->
 <div id="viewer"></div>
 
-<!-- Counter -->
+<!-- Counter & dots -->
 <div id="counter"></div>
-
-<!-- Progress dots -->
 <div id="dots"></div>
 
 <!-- Nav arrows -->
-<button class="nav-arrow" id="arrowUp" onclick="goPrev()" title="이전">▲</button>
-<button class="nav-arrow" id="arrowDown" onclick="goNext()" title="다음">▼</button>
+<button class="nav-arrow" id="arrowUp" onclick="goPrev()">▲</button>
+<button class="nav-arrow" id="arrowDown" onclick="goNext()">▼</button>
 
 <!-- Panel overlay -->
 <div id="panel-overlay" onclick="closePanel()"></div>
@@ -293,50 +311,47 @@
 <!-- Side panel -->
 <div id="panel">
   <div id="panel-header">
-    <h2>사이트 관리</h2>
+    <h2>서브레딧 관리</h2>
     <button class="icon-btn" onclick="closePanel()">✕</button>
   </div>
   <div id="panel-body">
-    <div id="siteList"></div>
-    <button class="btn btn-primary btn-full" onclick="openAddModal()">+ 사이트 추가</button>
+    <div id="subList"></div>
+    <button class="btn btn-primary btn-full" onclick="openAddModal()">+ 서브레딧 추가</button>
   </div>
 </div>
 
-<!-- Add/Edit Modal -->
-<div class="modal-overlay" id="siteModal">
+<!-- Modal -->
+<div class="modal-overlay" id="subModal">
   <div class="modal">
-    <h2 id="modalTitle">사이트 추가</h2>
+    <h2 id="modalTitle">서브레딧 추가</h2>
     <div class="form-group">
-      <label>사이트 이름</label>
-      <input id="inputName" type="text" placeholder="예: 필름카메라 갤러리" />
+      <label>서브레딧 이름</label>
+      <input id="inputSub" type="text" placeholder="예: analog" />
+      <div class="form-hint">r/ 없이 이름만 입력하세요</div>
     </div>
     <div class="form-group">
-      <label>갤러리 종류</label>
-      <select id="inputType">
-        <option value="minor">마이너 갤러리 (mgallery)</option>
-        <option value="major">일반 갤러리 (gallery)</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>갤러리 ID</label>
-      <input id="inputGalleryId" type="text" placeholder="예: film_camera" />
+      <label>표시 이름 (선택)</label>
+      <input id="inputLabel" type="text" placeholder="예: 필름 아날로그" />
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-      <button class="btn btn-primary" onclick="saveSite()">저장</button>
+      <button class="btn btn-primary" onclick="saveSub()">저장</button>
     </div>
   </div>
 </div>
 
 <script>
 // ── State ──────────────────────────────────────────────────
-const STORAGE_KEY = 'gallery-scroller-sites';
-const DEFAULT_SITES = [
-  { id: 'dcinside-film_camera', name: 'DC인사이드 필름카메라', galleryId: 'film_camera', galleryType: 'minor' }
+const STORAGE_KEY = 'reddit-scroller-subs';
+const DEFAULT_SUBS = [
+  { id: 'analog',         label: '아날로그 필름',      subreddit: 'analog' },
+  { id: 'filmphotography',label: '필름 포토그래피',    subreddit: 'filmphotography' },
+  { id: 'analog_japan',   label: '필름 (일본)',         subreddit: 'analog_japan' },
 ];
 
-let sites = loadSites();
-let currentSiteId = sites[0]?.id || null;
+let subs = loadSubs();
+let currentId = subs[0]?.id;
+let currentSort = 'hot';
 let images = [];
 let currentIdx = 0;
 let loadingPage = false;
@@ -344,107 +359,83 @@ let fetchedPage = 0;
 let hasMore = true;
 let editingId = null;
 
-// touch / wheel drag
+// touch
 let touchStartY = 0;
 let dragOffset = 0;
 let isDragging = false;
+let wheelTimer = null;
 
 // ── Storage ────────────────────────────────────────────────
-function loadSites() {
+function loadSubs() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const saved = raw ? JSON.parse(raw) : [];
-    return saved.length ? saved : [...DEFAULT_SITES];
-  } catch { return [...DEFAULT_SITES]; }
+    return saved.length ? saved : [...DEFAULT_SUBS];
+  } catch { return [...DEFAULT_SUBS]; }
 }
+function saveSubs() { localStorage.setItem(STORAGE_KEY, JSON.stringify(subs)); }
 
-function saveSites() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
-}
+function currentSub() { return subs.find(s => s.id === currentId); }
 
 // ── API ────────────────────────────────────────────────────
 async function fetchImages(page) {
-  const site = sites.find(s => s.id === currentSiteId);
-  if (!site) return [];
-  const res = await fetch(`/api/images?galleryId=${site.galleryId}&galleryType=${site.galleryType}&page=${page}`);
+  const sub = currentSub();
+  if (!sub) return [];
+  const res = await fetch(`/api/images?subreddit=${sub.subreddit}&sort=${currentSort}&page=${page}`);
   const data = await res.json();
-  if (data.error) {
-    const err = new Error(data.error);
-    err.detail = data.setup || '';
-    throw err;
-  }
+  if (data.error) throw new Error(data.error);
   return data.images || [];
 }
 
-// ── Render ─────────────────────────────────────────────────
-function buildSlide(img, idx) {
-  const slide = document.createElement('div');
-  slide.className = 'slide';
-  slide.dataset.idx = idx;
-
+// ── Slides ─────────────────────────────────────────────────
+function buildSlide(img) {
+  const el = document.createElement('div');
+  el.className = 'slide';
   const image = document.createElement('img');
   image.src = img.src;
   image.alt = img.title || '';
-  image.onerror = () => {
-    images.splice(idx, 1);
-    rebuildViewer();
-  };
+  image.onerror = () => el.remove();
 
   const caption = document.createElement('div');
   caption.className = 'slide-caption';
   caption.innerHTML = `
-    <div class="title">${img.title || '제목 없음'}</div>
-    <a class="meta" href="${img.postUrl}" target="_blank" rel="noopener" style="color:#888;text-decoration:none;">원문 보기 ↗</a>
+    <div class="title">${escHtml(img.title || '')}</div>
+    <a class="meta" href="${img.postUrl}" target="_blank" rel="noopener">Reddit에서 보기 ↗</a>
   `;
-
-  slide.appendChild(image);
-  slide.appendChild(caption);
-  return slide;
+  el.appendChild(image);
+  el.appendChild(caption);
+  return el;
 }
 
-function buildLoadingSlide() {
-  const slide = document.createElement('div');
-  slide.className = 'slide';
-  slide.dataset.special = 'loading';
-  slide.innerHTML = `<div class="slide-loading"><div class="spinner"></div><span>불러오는 중...</span></div>`;
-  return slide;
+function buildSpecialSlide(type, msg) {
+  const el = document.createElement('div');
+  el.className = 'slide';
+  el.dataset.special = type;
+  if (type === 'loading') {
+    el.innerHTML = `<div class="slide-center"><div class="spinner"></div><span style="color:#666">불러오는 중...</span></div>`;
+  } else {
+    el.innerHTML = `<div class="slide-center"><div class="error-text">${msg}</div><button class="btn btn-primary" style="margin-top:8px" onclick="retryLoad()">다시 시도</button></div>`;
+  }
+  return el;
 }
 
-function buildErrorSlide(msg, detail) {
-  const slide = document.createElement('div');
-  slide.className = 'slide';
-  slide.dataset.special = 'error';
-  const detailHtml = detail ? `<p style="margin-top:12px;font-size:0.8rem;color:#888;max-width:340px;line-height:1.6;">${detail}</p>` : '';
-  slide.innerHTML = `<div class="slide-error">${msg}${detailHtml}<br><br><button class="btn btn-primary" onclick="retryLoad()">다시 시도</button></div>`;
-  return slide;
-}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function positionSlides() {
-  const viewer = document.getElementById('viewer');
-  [...viewer.children].forEach((slide, i) => {
-    const offset = i - currentIdx;
-    slide.style.transform = `translateY(${offset * 100}vh)`;
+function positionAll() {
+  [...document.getElementById('viewer').children].forEach((slide, i) => {
+    slide.style.transform = `translateY(${(i - currentIdx) * 100}vh)`;
   });
   updateDots();
   updateCounter();
-  updateSiteLabel();
-}
-
-function rebuildViewer() {
-  const viewer = document.getElementById('viewer');
-  viewer.innerHTML = '';
-  images.forEach((img, i) => viewer.appendChild(buildSlide(img, i)));
-  positionSlides();
 }
 
 function updateDots() {
   const dots = document.getElementById('dots');
   const total = images.length;
   const max = 12;
-  const start = Math.max(0, Math.min(currentIdx - Math.floor(max / 2), total - max));
-  const end = Math.min(start + max, total);
+  const start = Math.max(0, Math.min(currentIdx - 6, total - max));
   dots.innerHTML = '';
-  for (let i = start; i < end; i++) {
+  for (let i = start; i < Math.min(start + max, total); i++) {
     const d = document.createElement('div');
     d.className = 'dot' + (i === currentIdx ? ' active' : '');
     dots.appendChild(d);
@@ -452,62 +443,53 @@ function updateDots() {
 }
 
 function updateCounter() {
-  document.getElementById('counter').textContent =
-    images.length ? `${currentIdx + 1} / ${images.length}` : '';
+  document.getElementById('counter').textContent = images.length ? `${currentIdx + 1} / ${images.length}` : '';
 }
 
-function updateSiteLabel() {
-  const site = sites.find(s => s.id === currentSiteId);
-  document.getElementById('siteLabel').textContent = site ? site.name : '';
+function updateBadge() {
+  const sub = currentSub();
+  document.getElementById('subredditBadge').textContent = sub ? `r/${sub.subreddit}` : '';
 }
 
 // ── Navigation ─────────────────────────────────────────────
 function goTo(idx) {
   if (idx < 0 || idx >= images.length) return;
   currentIdx = idx;
-  positionSlides();
-  // preload next batch
-  if (currentIdx >= images.length - 3 && hasMore && !loadingPage) {
-    loadMore();
-  }
+  positionAll();
+  if (currentIdx >= images.length - 4 && hasMore && !loadingPage) loadMore();
 }
-
 function goNext() { goTo(currentIdx + 1); }
 function goPrev() { goTo(currentIdx - 1); }
 
-// ── Loading ────────────────────────────────────────────────
+// ── Load ───────────────────────────────────────────────────
 async function loadMore() {
   if (loadingPage || !hasMore) return;
   loadingPage = true;
   const viewer = document.getElementById('viewer');
-
-  // append loading slide
-  const loadingSlide = buildLoadingSlide();
-  viewer.appendChild(loadingSlide);
-  loadingSlide.style.transform = `translateY(${(viewer.children.length - 1 - currentIdx) * 100}vh)`;
+  const loadSlide = buildSpecialSlide('loading');
+  viewer.appendChild(loadSlide);
+  loadSlide.style.transform = `translateY(${(viewer.children.length - 1 - currentIdx) * 100}vh)`;
 
   try {
     const nextPage = fetchedPage + 1;
-    const newImages = await fetchImages(nextPage);
-    viewer.removeChild(loadingSlide);
-
-    if (!newImages.length) {
+    const newImgs = await fetchImages(nextPage);
+    viewer.removeChild(loadSlide);
+    if (!newImgs.length) {
       hasMore = false;
     } else {
       fetchedPage = nextPage;
       const offset = images.length;
-      images.push(...newImages);
-      newImages.forEach((img, i) => {
-        const slide = buildSlide(img, offset + i);
-        slide.style.transform = `translateY(${(offset + i - currentIdx) * 100}vh)`;
-        viewer.appendChild(slide);
+      images.push(...newImgs);
+      newImgs.forEach((img, i) => {
+        const s = buildSlide(img);
+        s.style.transform = `translateY(${(offset + i - currentIdx) * 100}vh)`;
+        viewer.appendChild(s);
       });
     }
-    updateDots();
-    updateCounter();
+    updateDots(); updateCounter();
   } catch (err) {
-    viewer.removeChild(loadingSlide);
-    const errSlide = buildErrorSlide('오류: ' + err.message, err.detail);
+    viewer.removeChild(loadSlide);
+    const errSlide = buildSpecialSlide('error', err.message);
     errSlide.style.transform = `translateY(${(viewer.children.length - currentIdx) * 100}vh)`;
     viewer.appendChild(errSlide);
   }
@@ -516,61 +498,53 @@ async function loadMore() {
 
 function retryLoad() {
   hasMore = true;
-  // remove error slides
   const viewer = document.getElementById('viewer');
-  [...viewer.querySelectorAll('[data-special="error"]')].forEach(el => el.remove());
-  images = images.filter((_, i) => i < viewer.children.length);
+  viewer.querySelectorAll('[data-special="error"]').forEach(el => el.remove());
   loadMore();
 }
 
 async function resetAndLoad() {
-  images = [];
-  currentIdx = 0;
-  fetchedPage = 0;
-  hasMore = true;
-  loadingPage = false;
+  images = []; currentIdx = 0; fetchedPage = 0; hasMore = true; loadingPage = false;
   document.getElementById('viewer').innerHTML = '';
   document.getElementById('dots').innerHTML = '';
-  updateCounter();
-  updateSiteLabel();
+  updateCounter(); updateBadge();
   await loadMore();
 }
 
-// ── Touch / Swipe ──────────────────────────────────────────
+// ── Sort tabs ──────────────────────────────────────────────
+document.getElementById('sortBar').addEventListener('click', e => {
+  const tab = e.target.closest('.sort-tab');
+  if (!tab) return;
+  document.querySelectorAll('.sort-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  currentSort = tab.dataset.sort;
+  resetAndLoad();
+});
+
+// ── Touch / Wheel / Keyboard ───────────────────────────────
 const viewer = document.getElementById('viewer');
 
 viewer.addEventListener('touchstart', e => {
   touchStartY = e.touches[0].clientY;
-  isDragging = true;
-  dragOffset = 0;
+  isDragging = true; dragOffset = 0;
 }, { passive: true });
 
 viewer.addEventListener('touchmove', e => {
   if (!isDragging) return;
   dragOffset = e.touches[0].clientY - touchStartY;
-  applyDragOffset(dragOffset);
+  [...viewer.children].forEach((slide, i) => {
+    slide.style.transform = `translateY(calc(${(i - currentIdx) * 100}vh + ${dragOffset}px))`;
+  });
 }, { passive: true });
 
 viewer.addEventListener('touchend', () => {
   isDragging = false;
-  if (Math.abs(dragOffset) > window.innerHeight * 0.2) {
-    dragOffset > 0 ? goPrev() : goNext();
-  } else {
-    positionSlides(); // snap back
-  }
+  Math.abs(dragOffset) > window.innerHeight * 0.18
+    ? (dragOffset > 0 ? goPrev() : goNext())
+    : positionAll();
   dragOffset = 0;
 });
 
-function applyDragOffset(offset) {
-  const vChildren = document.getElementById('viewer').children;
-  [...vChildren].forEach((slide, i) => {
-    const base = (i - currentIdx) * 100;
-    slide.style.transform = `translateY(calc(${base}vh + ${offset}px))`;
-  });
-}
-
-// wheel scroll
-let wheelTimer = null;
 window.addEventListener('wheel', e => {
   e.preventDefault();
   if (wheelTimer) return;
@@ -578,44 +552,38 @@ window.addEventListener('wheel', e => {
   wheelTimer = setTimeout(() => wheelTimer = null, 500);
 }, { passive: false });
 
-// keyboard
 document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') goNext();
-  if (e.key === 'ArrowUp'   || e.key === 'ArrowLeft')  goPrev();
+  if (['ArrowDown','ArrowRight'].includes(e.key)) goNext();
+  if (['ArrowUp','ArrowLeft'].includes(e.key)) goPrev();
   if (e.key === 'Escape') { closePanel(); closeModal(); }
 });
 
-// ── Site panel ─────────────────────────────────────────────
+// ── Panel ──────────────────────────────────────────────────
 function openPanel() {
   document.getElementById('panel').classList.add('open');
   document.getElementById('panel-overlay').classList.add('open');
-  renderSiteList();
+  renderSubList();
 }
 function closePanel() {
   document.getElementById('panel').classList.remove('open');
   document.getElementById('panel-overlay').classList.remove('open');
 }
 
-function renderSiteList() {
-  const el = document.getElementById('siteList');
-  if (!sites.length) {
-    el.innerHTML = '<p style="color:#555;font-size:0.85rem;margin-bottom:14px;">등록된 사이트가 없습니다</p>';
-    return;
-  }
-  el.innerHTML = sites.map(s => `
-    <div class="site-card ${s.id === currentSiteId ? 'active' : ''}" onclick="switchSite('${s.id}')">
-      <div class="sc-name">${s.name}</div>
-      <div class="sc-id">${s.galleryType === 'minor' ? '마이너' : '일반'} · ${s.galleryId}</div>
-      <div class="site-card-actions" onclick="event.stopPropagation()">
+function renderSubList() {
+  document.getElementById('subList').innerHTML = subs.map(s => `
+    <div class="sub-card ${s.id === currentId ? 'active' : ''}" onclick="switchSub('${s.id}')">
+      <div class="sc-name">${escHtml(s.label || s.subreddit)}</div>
+      <div class="sc-desc">r/${escHtml(s.subreddit)}</div>
+      <div class="sub-card-actions" onclick="event.stopPropagation()">
         <button class="btn btn-secondary" onclick="openEditModal('${s.id}')">수정</button>
-        <button class="btn btn-danger" onclick="deleteSite('${s.id}')">삭제</button>
+        <button class="btn btn-danger" onclick="deleteSub('${s.id}')">삭제</button>
       </div>
     </div>
   `).join('');
 }
 
-function switchSite(id) {
-  currentSiteId = id;
+function switchSub(id) {
+  currentId = id;
   closePanel();
   resetAndLoad();
 }
@@ -623,54 +591,44 @@ function switchSite(id) {
 // ── Modal ──────────────────────────────────────────────────
 function openAddModal() {
   editingId = null;
-  document.getElementById('modalTitle').textContent = '사이트 추가';
-  document.getElementById('inputName').value = '';
-  document.getElementById('inputGalleryId').value = '';
-  document.getElementById('inputType').value = 'minor';
-  document.getElementById('siteModal').classList.add('open');
+  document.getElementById('modalTitle').textContent = '서브레딧 추가';
+  document.getElementById('inputSub').value = '';
+  document.getElementById('inputLabel').value = '';
+  document.getElementById('subModal').classList.add('open');
 }
 
 function openEditModal(id) {
-  const s = sites.find(x => x.id === id);
+  const s = subs.find(x => x.id === id);
   if (!s) return;
   editingId = id;
-  document.getElementById('modalTitle').textContent = '사이트 수정';
-  document.getElementById('inputName').value = s.name;
-  document.getElementById('inputGalleryId').value = s.galleryId;
-  document.getElementById('inputType').value = s.galleryType;
-  document.getElementById('siteModal').classList.add('open');
+  document.getElementById('modalTitle').textContent = '서브레딧 수정';
+  document.getElementById('inputSub').value = s.subreddit;
+  document.getElementById('inputLabel').value = s.label || '';
+  document.getElementById('subModal').classList.add('open');
 }
 
-function closeModal() {
-  document.getElementById('siteModal').classList.remove('open');
-}
+function closeModal() { document.getElementById('subModal').classList.remove('open'); }
 
-function saveSite() {
-  const name = document.getElementById('inputName').value.trim();
-  const galleryType = document.getElementById('inputType').value;
-  const galleryId = document.getElementById('inputGalleryId').value.trim();
-  if (!name || !galleryId) { alert('이름과 갤러리 ID를 입력하세요'); return; }
+function saveSub() {
+  const subreddit = document.getElementById('inputSub').value.replace(/^r\//,'').trim();
+  const label = document.getElementById('inputLabel').value.trim() || subreddit;
+  if (!subreddit) { alert('서브레딧 이름을 입력하세요'); return; }
 
   if (editingId) {
-    const idx = sites.findIndex(s => s.id === editingId);
-    if (idx !== -1) sites[idx] = { ...sites[idx], name, galleryType, galleryId };
+    const idx = subs.findIndex(s => s.id === editingId);
+    if (idx !== -1) subs[idx] = { ...subs[idx], subreddit, label };
   } else {
-    sites.push({ id: `${galleryType}-${galleryId}-${Date.now()}`, name, galleryType, galleryId });
+    subs.push({ id: subreddit + '-' + Date.now(), subreddit, label });
   }
-  saveSites();
-  closeModal();
-  renderSiteList();
+  saveSubs(); closeModal(); renderSubList();
 }
 
-function deleteSite(id) {
-  if (!confirm('이 사이트를 삭제할까요?')) return;
-  sites = sites.filter(s => s.id !== id);
-  saveSites();
-  if (currentSiteId === id) {
-    currentSiteId = sites[0]?.id || null;
-    resetAndLoad();
-  }
-  renderSiteList();
+function deleteSub(id) {
+  if (!confirm('삭제할까요?')) return;
+  subs = subs.filter(s => s.id !== id);
+  saveSubs();
+  if (currentId === id) { currentId = subs[0]?.id; resetAndLoad(); }
+  renderSubList();
 }
 
 // ── Init ───────────────────────────────────────────────────
