@@ -3,253 +3,306 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>갤러리 이미지 스크롤러</title>
+  <title>갤러리 스크롤러</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body {
-      background: #0f0f0f;
-      color: #eee;
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      min-height: 100vh;
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      user-select: none;
     }
 
-    header {
-      background: #1a1a1a;
-      border-bottom: 1px solid #333;
-      padding: 14px 24px;
+    /* ── Shorts viewer ── */
+    #viewer {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.38s cubic-bezier(.4,0,.2,1);
+      will-change: transform;
+    }
+
+    .slide img {
+      max-width: 100%;
+      max-height: 100vh;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+    }
+
+    /* caption bar */
+    .slide-caption {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 48px 20px 20px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      font-size: 0.9rem;
+      color: #ddd;
+    }
+    .slide-caption .title { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+    .slide-caption .meta { font-size: 0.78rem; color: #999; }
+
+    /* loading slide */
+    .slide-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      color: #666;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid #333;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* error slide */
+    .slide-error { color: #e74c3c; text-align: center; padding: 20px; font-size: 0.9rem; }
+
+    /* ── Progress dots ── */
+    #dots {
+      position: fixed;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 50;
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .dot.active { background: #fff; transform: scale(1.5); }
+
+    /* ── Top HUD ── */
+    #hud {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      padding: 16px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      background: linear-gradient(rgba(0,0,0,0.5), transparent);
+      z-index: 50;
     }
+    #hud h1 { font-size: 1rem; font-weight: 600; }
 
-    header h1 {
-      font-size: 1.2rem;
-      font-weight: 600;
+    .hud-actions { display: flex; gap: 10px; align-items: center; }
+
+    .icon-btn {
+      background: rgba(255,255,255,0.12);
+      border: none;
       color: #fff;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .site-selector {
-      background: #2a2a2a;
-      border: 1px solid #444;
-      color: #eee;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.9rem;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      font-size: 1.1rem;
       cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+      backdrop-filter: blur(4px);
+    }
+    .icon-btn:hover { background: rgba(255,255,255,0.22); }
+
+    /* site label */
+    #siteLabel {
+      position: fixed;
+      top: 60px; left: 18px;
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.5);
+      z-index: 50;
+    }
+
+    /* counter */
+    #counter {
+      position: fixed;
+      bottom: 80px; right: 18px;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.5);
+      z-index: 50;
+    }
+
+    /* nav arrows (desktop) */
+    .nav-arrow {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #fff;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      font-size: 1.3rem;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: background 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-arrow:hover { background: rgba(255,255,255,0.22); }
+    #arrowUp { top: 14px; }
+    #arrowDown { bottom: 14px; }
+
+    /* ── Side panel (site list) ── */
+    #panel {
+      position: fixed;
+      top: 0; right: -360px;
+      width: 340px;
+      height: 100%;
+      background: #111;
+      border-left: 1px solid #222;
+      z-index: 200;
+      transition: right 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    #panel.open { right: 0; }
+
+    #panel-header {
+      padding: 20px 18px 14px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #panel-header h2 { font-size: 1rem; }
+
+    #panel-body { flex: 1; overflow-y: auto; padding: 14px; }
+
+    .site-card {
+      background: #1c1c1c;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .site-card:hover { border-color: #555; }
+    .site-card.active { border-color: #3a7bd5; }
+    .site-card .sc-name { font-size: 0.9rem; font-weight: 500; }
+    .site-card .sc-id { font-size: 0.75rem; color: #666; margin-top: 3px; }
+    .site-card-actions {
+      display: flex; gap: 6px; margin-top: 10px;
     }
 
     .btn {
-      background: #3a7bd5;
-      color: #fff;
-      border: none;
-      padding: 7px 16px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: background 0.2s;
+      border: none; cursor: pointer;
+      border-radius: 6px; font-size: 0.8rem;
+      padding: 5px 12px; transition: background 0.2s;
     }
-    .btn:hover { background: #2f65b8; }
-    .btn.danger { background: #c0392b; }
-    .btn.danger:hover { background: #a93226; }
-    .btn.secondary { background: #444; }
-    .btn.secondary:hover { background: #555; }
+    .btn-primary { background: #3a7bd5; color: #fff; }
+    .btn-primary:hover { background: #2f65b8; }
+    .btn-secondary { background: #2a2a2a; color: #ccc; }
+    .btn-secondary:hover { background: #333; }
+    .btn-danger { background: #c0392b; color: #fff; }
+    .btn-danger:hover { background: #a93226; }
+    .btn-full { width: 100%; padding: 9px; margin-top: 4px; }
 
-    /* Image grid */
-    #gallery {
-      columns: 3;
-      column-gap: 12px;
-      padding: 20px;
-      max-width: 1400px;
-      margin: 0 auto;
+    /* panel overlay */
+    #panel-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 199;
     }
+    #panel-overlay.open { display: block; }
 
-    @media (max-width: 900px) { #gallery { columns: 2; } }
-    @media (max-width: 550px) { #gallery { columns: 1; } }
-
-    .img-card {
-      break-inside: avoid;
-      margin-bottom: 12px;
-      background: #1c1c1c;
-      border-radius: 10px;
-      overflow: hidden;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .img-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    }
-    .img-card img {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-    .img-card .caption {
-      padding: 8px 10px;
-      font-size: 0.78rem;
-      color: #999;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    #loader {
-      text-align: center;
-      padding: 40px;
-      color: #666;
-      font-size: 0.9rem;
-    }
-
-    #loader .spinner {
-      width: 36px;
-      height: 36px;
-      border: 3px solid #333;
-      border-top-color: #3a7bd5;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 12px;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Modal */
+    /* ── Modal ── */
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.88);
-      z-index: 200;
+      background: rgba(0,0,0,0.85);
+      z-index: 300;
       align-items: center;
       justify-content: center;
     }
     .modal-overlay.open { display: flex; }
-
     .modal {
-      background: #1e1e1e;
-      border-radius: 12px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 14px;
       padding: 28px;
       width: 90%;
-      max-width: 520px;
-      border: 1px solid #333;
+      max-width: 420px;
     }
-    .modal h2 { margin-bottom: 20px; font-size: 1.1rem; }
-
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 0.82rem; color: #aaa; margin-bottom: 6px; }
+    .modal h2 { margin-bottom: 20px; font-size: 1rem; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 0.8rem; color: #999; margin-bottom: 6px; }
     .form-group input, .form-group select {
       width: 100%;
-      background: #2a2a2a;
-      border: 1px solid #444;
+      background: #242424;
+      border: 1px solid #3a3a3a;
       color: #eee;
       padding: 9px 12px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-    }
-
-    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
-
-    /* Lightbox */
-    .lightbox {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.95);
-      z-index: 300;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-    }
-    .lightbox.open { display: flex; }
-    .lightbox img { max-width: 92vw; max-height: 85vh; object-fit: contain; border-radius: 8px; }
-    .lightbox .lb-caption { color: #aaa; font-size: 0.85rem; margin-top: 12px; }
-    .lightbox .lb-close {
-      position: absolute;
-      top: 20px; right: 24px;
-      font-size: 2rem;
-      cursor: pointer;
-      color: #fff;
-      line-height: 1;
-    }
-
-    /* Site list panel */
-    #siteListPanel {
-      display: none;
-      position: fixed;
-      top: 56px; right: 0;
-      width: 340px;
-      background: #1a1a1a;
-      border-left: 1px solid #333;
-      height: calc(100vh - 56px);
-      overflow-y: auto;
-      z-index: 90;
-      padding: 20px;
-    }
-    #siteListPanel.open { display: block; }
-    .site-item {
-      background: #242424;
-      border: 1px solid #333;
       border-radius: 8px;
-      padding: 12px 14px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .site-item .site-name { font-size: 0.9rem; font-weight: 500; }
-    .site-item .site-sub { font-size: 0.75rem; color: #777; margin-top: 3px; }
-    .site-item-actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: 10px; }
-
-    .empty-msg {
-      text-align: center;
-      color: #555;
-      padding: 60px 20px;
       font-size: 0.9rem;
     }
-
-    .error-msg {
-      text-align: center;
-      color: #e74c3c;
-      padding: 40px;
-      font-size: 0.9rem;
-    }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
   </style>
 </head>
 <body>
 
-<header>
+<!-- Top HUD -->
+<div id="hud">
   <h1>📷 갤러리 스크롤러</h1>
-  <div class="header-actions">
-    <select id="siteSelect" class="site-selector"></select>
-    <button class="btn" onclick="openAddModal()">+ 사이트 추가</button>
-    <button class="btn secondary" onclick="toggleSitePanel()">사이트 관리</button>
+  <div class="hud-actions">
+    <button class="icon-btn" title="사이트 관리" onclick="openPanel()">☰</button>
   </div>
-</header>
+</div>
+<div id="siteLabel"></div>
 
-<!-- Site management panel -->
-<div id="siteListPanel">
-  <h3 style="margin-bottom:16px;">등록된 사이트</h3>
-  <div id="siteList"></div>
-  <button class="btn" style="width:100%;margin-top:8px;" onclick="openAddModal()">+ 새 사이트 추가</button>
+<!-- Viewer -->
+<div id="viewer"></div>
+
+<!-- Counter -->
+<div id="counter"></div>
+
+<!-- Progress dots -->
+<div id="dots"></div>
+
+<!-- Nav arrows -->
+<button class="nav-arrow" id="arrowUp" onclick="goPrev()" title="이전">▲</button>
+<button class="nav-arrow" id="arrowDown" onclick="goNext()" title="다음">▼</button>
+
+<!-- Panel overlay -->
+<div id="panel-overlay" onclick="closePanel()"></div>
+
+<!-- Side panel -->
+<div id="panel">
+  <div id="panel-header">
+    <h2>사이트 관리</h2>
+    <button class="icon-btn" onclick="closePanel()">✕</button>
+  </div>
+  <div id="panel-body">
+    <div id="siteList"></div>
+    <button class="btn btn-primary btn-full" onclick="openAddModal()">+ 사이트 추가</button>
+  </div>
 </div>
 
-<!-- Gallery -->
-<div id="gallery"></div>
-<div id="loader">
-  <div class="spinner"></div>
-  <p>이미지 불러오는 중...</p>
-</div>
-
-<!-- Add/Edit modal -->
+<!-- Add/Edit Modal -->
 <div class="modal-overlay" id="siteModal">
   <div class="modal">
     <h2 id="modalTitle">사이트 추가</h2>
@@ -260,8 +313,8 @@
     <div class="form-group">
       <label>갤러리 종류</label>
       <select id="inputType">
-        <option value="dcinside">DC인사이드 마이너 갤러리</option>
-        <option value="dcinside_major">DC인사이드 일반 갤러리</option>
+        <option value="minor">마이너 갤러리 (mgallery)</option>
+        <option value="major">일반 갤러리 (gallery)</option>
       </select>
     </div>
     <div class="form-group">
@@ -269,150 +322,317 @@
       <input id="inputGalleryId" type="text" placeholder="예: film_camera" />
     </div>
     <div class="modal-actions">
-      <button class="btn secondary" onclick="closeModal()">취소</button>
-      <button class="btn" onclick="saveSite()">저장</button>
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveSite()">저장</button>
     </div>
   </div>
 </div>
 
-<!-- Lightbox -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
-  <span class="lb-close">&times;</span>
-  <img id="lbImg" src="" alt="" />
-  <div class="lb-caption" id="lbCaption"></div>
-</div>
-
 <script>
-let currentSiteId = null;
-let currentPage = 1;
-let loading = false;
+// ── State ──────────────────────────────────────────────────
+const STORAGE_KEY = 'gallery-scroller-sites';
+const DEFAULT_SITES = [
+  { id: 'dcinside-film_camera', name: 'DC인사이드 필름카메라', galleryId: 'film_camera', galleryType: 'minor' }
+];
+
+let sites = loadSites();
+let currentSiteId = sites[0]?.id || null;
+let images = [];
+let currentIdx = 0;
+let loadingPage = false;
+let fetchedPage = 0;
 let hasMore = true;
 let editingId = null;
 
-async function api(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(path, opts);
-  return res.json();
+// touch / wheel drag
+let touchStartY = 0;
+let dragOffset = 0;
+let isDragging = false;
+
+// ── Storage ────────────────────────────────────────────────
+function loadSites() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : [];
+    return saved.length ? saved : [...DEFAULT_SITES];
+  } catch { return [...DEFAULT_SITES]; }
 }
 
-async function loadSites() {
-  const sites = await api('GET', '/api/sites');
-  const sel = document.getElementById('siteSelect');
-  sel.innerHTML = sites.map(s =>
-    `<option value="${s.id}">${s.name}</option>`
-  ).join('');
-  renderSiteList(sites);
-  if (sites.length > 0) {
-    currentSiteId = sel.value;
-    resetAndLoad();
+function saveSites() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
+}
+
+// ── API ────────────────────────────────────────────────────
+async function fetchImages(page) {
+  const site = sites.find(s => s.id === currentSiteId);
+  if (!site) return [];
+  const res = await fetch(`/api/images?galleryId=${site.galleryId}&galleryType=${site.galleryType}&page=${page}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.images || [];
+}
+
+// ── Render ─────────────────────────────────────────────────
+function buildSlide(img, idx) {
+  const slide = document.createElement('div');
+  slide.className = 'slide';
+  slide.dataset.idx = idx;
+
+  const image = document.createElement('img');
+  image.src = img.src;
+  image.alt = img.title || '';
+  image.onerror = () => {
+    images.splice(idx, 1);
+    rebuildViewer();
+  };
+
+  const caption = document.createElement('div');
+  caption.className = 'slide-caption';
+  caption.innerHTML = `
+    <div class="title">${img.title || '제목 없음'}</div>
+    <a class="meta" href="${img.postUrl}" target="_blank" rel="noopener" style="color:#888;text-decoration:none;">원문 보기 ↗</a>
+  `;
+
+  slide.appendChild(image);
+  slide.appendChild(caption);
+  return slide;
+}
+
+function buildLoadingSlide() {
+  const slide = document.createElement('div');
+  slide.className = 'slide';
+  slide.dataset.special = 'loading';
+  slide.innerHTML = `<div class="slide-loading"><div class="spinner"></div><span>불러오는 중...</span></div>`;
+  return slide;
+}
+
+function buildErrorSlide(msg) {
+  const slide = document.createElement('div');
+  slide.className = 'slide';
+  slide.dataset.special = 'error';
+  slide.innerHTML = `<div class="slide-error">${msg}<br><br><button class="btn btn-primary" onclick="retryLoad()">다시 시도</button></div>`;
+  return slide;
+}
+
+function positionSlides() {
+  const viewer = document.getElementById('viewer');
+  [...viewer.children].forEach((slide, i) => {
+    const offset = i - currentIdx;
+    slide.style.transform = `translateY(${offset * 100}vh)`;
+  });
+  updateDots();
+  updateCounter();
+  updateSiteLabel();
+}
+
+function rebuildViewer() {
+  const viewer = document.getElementById('viewer');
+  viewer.innerHTML = '';
+  images.forEach((img, i) => viewer.appendChild(buildSlide(img, i)));
+  positionSlides();
+}
+
+function updateDots() {
+  const dots = document.getElementById('dots');
+  const total = images.length;
+  const max = 12;
+  const start = Math.max(0, Math.min(currentIdx - Math.floor(max / 2), total - max));
+  const end = Math.min(start + max, total);
+  dots.innerHTML = '';
+  for (let i = start; i < end; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === currentIdx ? ' active' : '');
+    dots.appendChild(d);
   }
 }
 
-function renderSiteList(sites) {
+function updateCounter() {
+  document.getElementById('counter').textContent =
+    images.length ? `${currentIdx + 1} / ${images.length}` : '';
+}
+
+function updateSiteLabel() {
+  const site = sites.find(s => s.id === currentSiteId);
+  document.getElementById('siteLabel').textContent = site ? site.name : '';
+}
+
+// ── Navigation ─────────────────────────────────────────────
+function goTo(idx) {
+  if (idx < 0 || idx >= images.length) return;
+  currentIdx = idx;
+  positionSlides();
+  // preload next batch
+  if (currentIdx >= images.length - 3 && hasMore && !loadingPage) {
+    loadMore();
+  }
+}
+
+function goNext() { goTo(currentIdx + 1); }
+function goPrev() { goTo(currentIdx - 1); }
+
+// ── Loading ────────────────────────────────────────────────
+async function loadMore() {
+  if (loadingPage || !hasMore) return;
+  loadingPage = true;
+  const viewer = document.getElementById('viewer');
+
+  // append loading slide
+  const loadingSlide = buildLoadingSlide();
+  viewer.appendChild(loadingSlide);
+  loadingSlide.style.transform = `translateY(${(viewer.children.length - 1 - currentIdx) * 100}vh)`;
+
+  try {
+    const nextPage = fetchedPage + 1;
+    const newImages = await fetchImages(nextPage);
+    viewer.removeChild(loadingSlide);
+
+    if (!newImages.length) {
+      hasMore = false;
+    } else {
+      fetchedPage = nextPage;
+      const offset = images.length;
+      images.push(...newImages);
+      newImages.forEach((img, i) => {
+        const slide = buildSlide(img, offset + i);
+        slide.style.transform = `translateY(${(offset + i - currentIdx) * 100}vh)`;
+        viewer.appendChild(slide);
+      });
+    }
+    updateDots();
+    updateCounter();
+  } catch (err) {
+    viewer.removeChild(loadingSlide);
+    const errSlide = buildErrorSlide('오류: ' + err.message);
+    errSlide.style.transform = `translateY(${(viewer.children.length - currentIdx) * 100}vh)`;
+    viewer.appendChild(errSlide);
+  }
+  loadingPage = false;
+}
+
+function retryLoad() {
+  hasMore = true;
+  // remove error slides
+  const viewer = document.getElementById('viewer');
+  [...viewer.querySelectorAll('[data-special="error"]')].forEach(el => el.remove());
+  images = images.filter((_, i) => i < viewer.children.length);
+  loadMore();
+}
+
+async function resetAndLoad() {
+  images = [];
+  currentIdx = 0;
+  fetchedPage = 0;
+  hasMore = true;
+  loadingPage = false;
+  document.getElementById('viewer').innerHTML = '';
+  document.getElementById('dots').innerHTML = '';
+  updateCounter();
+  updateSiteLabel();
+  await loadMore();
+}
+
+// ── Touch / Swipe ──────────────────────────────────────────
+const viewer = document.getElementById('viewer');
+
+viewer.addEventListener('touchstart', e => {
+  touchStartY = e.touches[0].clientY;
+  isDragging = true;
+  dragOffset = 0;
+}, { passive: true });
+
+viewer.addEventListener('touchmove', e => {
+  if (!isDragging) return;
+  dragOffset = e.touches[0].clientY - touchStartY;
+  applyDragOffset(dragOffset);
+}, { passive: true });
+
+viewer.addEventListener('touchend', () => {
+  isDragging = false;
+  if (Math.abs(dragOffset) > window.innerHeight * 0.2) {
+    dragOffset > 0 ? goPrev() : goNext();
+  } else {
+    positionSlides(); // snap back
+  }
+  dragOffset = 0;
+});
+
+function applyDragOffset(offset) {
+  const vChildren = document.getElementById('viewer').children;
+  [...vChildren].forEach((slide, i) => {
+    const base = (i - currentIdx) * 100;
+    slide.style.transform = `translateY(calc(${base}vh + ${offset}px))`;
+  });
+}
+
+// wheel scroll
+let wheelTimer = null;
+window.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (wheelTimer) return;
+  e.deltaY > 0 ? goNext() : goPrev();
+  wheelTimer = setTimeout(() => wheelTimer = null, 500);
+}, { passive: false });
+
+// keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') goNext();
+  if (e.key === 'ArrowUp'   || e.key === 'ArrowLeft')  goPrev();
+  if (e.key === 'Escape') { closePanel(); closeModal(); }
+});
+
+// ── Site panel ─────────────────────────────────────────────
+function openPanel() {
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('panel-overlay').classList.add('open');
+  renderSiteList();
+}
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('panel-overlay').classList.remove('open');
+}
+
+function renderSiteList() {
   const el = document.getElementById('siteList');
   if (!sites.length) {
-    el.innerHTML = '<div class="empty-msg">등록된 사이트가 없습니다</div>';
+    el.innerHTML = '<p style="color:#555;font-size:0.85rem;margin-bottom:14px;">등록된 사이트가 없습니다</p>';
     return;
   }
   el.innerHTML = sites.map(s => `
-    <div class="site-item">
-      <div>
-        <div class="site-name">${s.name}</div>
-        <div class="site-sub">${s.galleryId}</div>
-      </div>
-      <div class="site-item-actions">
-        <button class="btn secondary" style="padding:4px 10px;font-size:0.78rem;" onclick="openEditModal('${s.id}')">수정</button>
-        <button class="btn danger" style="padding:4px 10px;font-size:0.78rem;" onclick="deleteSite('${s.id}')">삭제</button>
+    <div class="site-card ${s.id === currentSiteId ? 'active' : ''}" onclick="switchSite('${s.id}')">
+      <div class="sc-name">${s.name}</div>
+      <div class="sc-id">${s.galleryType === 'minor' ? '마이너' : '일반'} · ${s.galleryId}</div>
+      <div class="site-card-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-secondary" onclick="openEditModal('${s.id}')">수정</button>
+        <button class="btn btn-danger" onclick="deleteSite('${s.id}')">삭제</button>
       </div>
     </div>
   `).join('');
 }
 
-function resetAndLoad() {
-  document.getElementById('gallery').innerHTML = '';
-  currentPage = 1;
-  hasMore = true;
-  loadImages();
-}
-
-async function loadImages() {
-  if (loading || !hasMore) return;
-  loading = true;
-  const loader = document.getElementById('loader');
-  loader.innerHTML = '<div class="spinner"></div><p>이미지 불러오는 중...</p>';
-  loader.style.display = 'block';
-
-  try {
-    const data = await api('GET', `/api/images?siteId=${currentSiteId}&page=${currentPage}`);
-    if (data.error) {
-      loader.innerHTML = `<div class="error-msg">오류: ${data.error}</div>`;
-      loading = false;
-      return;
-    }
-    if (!data.images || data.images.length === 0) {
-      hasMore = false;
-      loader.innerHTML = '<div class="empty-msg">더 이상 이미지가 없습니다</div>';
-      loading = false;
-      return;
-    }
-    renderImages(data.images);
-    currentPage++;
-    loader.innerHTML = '';
-    loader.style.display = 'none';
-  } catch (e) {
-    loader.innerHTML = `<div class="error-msg">네트워크 오류: ${e.message}</div>`;
-  }
-  loading = false;
-}
-
-function renderImages(images) {
-  const gallery = document.getElementById('gallery');
-  images.forEach(img => {
-    const card = document.createElement('div');
-    card.className = 'img-card';
-    card.innerHTML = `
-      <img src="${img.src}" alt="${img.title || ''}" loading="lazy"
-           onerror="this.closest('.img-card').remove()" />
-      <div class="caption">${img.title || '제목 없음'}</div>
-    `;
-    card.querySelector('img').addEventListener('click', () => openLightbox(img.src, img.title));
-    gallery.appendChild(card);
-  });
-}
-
-// Infinite scroll
-window.addEventListener('scroll', () => {
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
-    loadImages();
-  }
-});
-
-// Site select change
-document.getElementById('siteSelect').addEventListener('change', e => {
-  currentSiteId = e.target.value;
+function switchSite(id) {
+  currentSiteId = id;
+  closePanel();
   resetAndLoad();
-});
+}
 
-// Modal
+// ── Modal ──────────────────────────────────────────────────
 function openAddModal() {
   editingId = null;
   document.getElementById('modalTitle').textContent = '사이트 추가';
   document.getElementById('inputName').value = '';
   document.getElementById('inputGalleryId').value = '';
-  document.getElementById('inputType').value = 'dcinside';
+  document.getElementById('inputType').value = 'minor';
   document.getElementById('siteModal').classList.add('open');
 }
 
-async function openEditModal(id) {
-  const sites = await api('GET', '/api/sites');
+function openEditModal(id) {
   const s = sites.find(x => x.id === id);
   if (!s) return;
   editingId = id;
   document.getElementById('modalTitle').textContent = '사이트 수정';
   document.getElementById('inputName').value = s.name;
   document.getElementById('inputGalleryId').value = s.galleryId;
-  document.getElementById('inputType').value = s.type;
+  document.getElementById('inputType').value = s.galleryType;
   document.getElementById('siteModal').classList.add('open');
 }
 
@@ -420,46 +640,36 @@ function closeModal() {
   document.getElementById('siteModal').classList.remove('open');
 }
 
-async function saveSite() {
+function saveSite() {
   const name = document.getElementById('inputName').value.trim();
-  const type = document.getElementById('inputType').value;
+  const galleryType = document.getElementById('inputType').value;
   const galleryId = document.getElementById('inputGalleryId').value.trim();
   if (!name || !galleryId) { alert('이름과 갤러리 ID를 입력하세요'); return; }
 
   if (editingId) {
-    await api('PUT', `/api/sites/${editingId}`, { name, type, galleryId });
+    const idx = sites.findIndex(s => s.id === editingId);
+    if (idx !== -1) sites[idx] = { ...sites[idx], name, galleryType, galleryId };
   } else {
-    await api('POST', '/api/sites', { name, type, galleryId });
+    sites.push({ id: `${galleryType}-${galleryId}-${Date.now()}`, name, galleryType, galleryId });
   }
+  saveSites();
   closeModal();
-  await loadSites();
+  renderSiteList();
 }
 
-async function deleteSite(id) {
+function deleteSite(id) {
   if (!confirm('이 사이트를 삭제할까요?')) return;
-  await api('DELETE', `/api/sites/${id}`);
-  await loadSites();
+  sites = sites.filter(s => s.id !== id);
+  saveSites();
+  if (currentSiteId === id) {
+    currentSiteId = sites[0]?.id || null;
+    resetAndLoad();
+  }
+  renderSiteList();
 }
 
-function toggleSitePanel() {
-  document.getElementById('siteListPanel').classList.toggle('open');
-}
-
-// Lightbox
-function openLightbox(src, title) {
-  document.getElementById('lbImg').src = src;
-  document.getElementById('lbCaption').textContent = title || '';
-  document.getElementById('lightbox').classList.add('open');
-}
-function closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-}
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeLightbox();
-});
-
-// Init
-loadSites();
+// ── Init ───────────────────────────────────────────────────
+resetAndLoad();
 </script>
 </body>
 </html>
