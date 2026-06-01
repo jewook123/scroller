@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>필름 갤러리 스크롤러</title>
+  <title>갤러리 스크롤러</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       height: 100%; overflow: hidden;
       background: #000; color: #fff;
       font-family: 'Segoe UI', sans-serif;
-      user-select: none;
     }
+
+    /* ── 뷰어 ── */
     #viewer {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center; overflow: hidden;
@@ -31,26 +32,16 @@
       padding: 60px 20px 24px;
       background: linear-gradient(transparent, rgba(0,0,0,0.75));
     }
-    .slide-caption .title {
-      font-size: 0.95rem; font-weight: 600; margin-bottom: 6px;
-      display: -webkit-box; -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical; overflow: hidden;
-    }
-    .slide-caption a { font-size: 0.78rem; color: #aaa; text-decoration: none; }
-    .slide-caption a:hover { color: #fff; }
+    .slide-caption .title { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+    .slide-caption .note  { font-size: 0.78rem; color: #aaa; }
     .slide-center {
-      display: flex; flex-direction: column;
-      align-items: center; gap: 16px;
+      display: flex; flex-direction: column; align-items: center; gap: 16px;
       color: #666; text-align: center; padding: 30px;
     }
-    .spinner {
-      width: 40px; height: 40px;
-      border: 3px solid #333; border-top-color: #fff;
-      border-radius: 50%; animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .error-text { color: #e74c3c; font-size: 0.88rem; max-width: 320px; line-height: 1.7; }
+    .empty-icon { font-size: 3rem; }
+    .empty-msg  { font-size: 0.9rem; line-height: 1.7; max-width: 280px; }
 
+    /* ── HUD ── */
     #hud {
       position: fixed; top: 0; left: 0; right: 0; padding: 14px 18px;
       display: flex; align-items: center; justify-content: space-between;
@@ -59,9 +50,8 @@
     .hud-left { display: flex; align-items: center; gap: 10px; }
     #hud h1 { font-size: 1rem; font-weight: 700; }
     .badge {
-      background: rgba(255, 0, 120, 0.85); color: #fff;
-      font-size: 0.72rem; font-weight: 700;
-      padding: 3px 9px; border-radius: 12px;
+      background: rgba(255,255,255,0.15); color: #fff;
+      font-size: 0.72rem; padding: 3px 9px; border-radius: 12px;
       max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .icon-btn {
@@ -72,9 +62,10 @@
     }
     .icon-btn:hover { background: rgba(255,255,255,0.22); }
 
+    /* ── 카운터 / 점 ── */
     #counter {
       position: fixed; bottom: 80px; right: 16px;
-      font-size: 0.78rem; color: rgba(255,255,255,0.45); z-index: 50;
+      font-size: 0.78rem; color: rgba(255,255,255,0.4); z-index: 50;
     }
     #dots {
       position: fixed; right: 12px; top: 50%; transform: translateY(-50%);
@@ -86,6 +77,7 @@
     }
     .dot.active { background: #fff; transform: scale(1.6); }
 
+    /* ── 화살표 ── */
     .nav-arrow {
       position: fixed; left: 50%; transform: translateX(-50%); z-index: 50;
       background: rgba(255,255,255,0.08); border: none; color: #fff;
@@ -97,8 +89,9 @@
     #arrowUp   { top: 68px; }
     #arrowDown { bottom: 14px; }
 
+    /* ── 패널 ── */
     #panel {
-      position: fixed; top: 0; right: -360px; width: 340px; height: 100%;
+      position: fixed; top: 0; right: -400px; width: 380px; height: 100%;
       background: #111; border-left: 1px solid #222; z-index: 200;
       transition: right 0.3s ease; display: flex; flex-direction: column;
     }
@@ -109,34 +102,65 @@
     }
     #panel-overlay.open { display: block; }
     #panel-header {
-      padding: 20px 18px 14px; border-bottom: 1px solid #222;
-      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 16px 14px; border-bottom: 1px solid #222;
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
     }
     #panel-header h2 { font-size: 1rem; }
+    #panel-tabs {
+      display: flex; border-bottom: 1px solid #222; flex-shrink: 0;
+    }
+    .ptab {
+      flex: 1; padding: 10px; text-align: center; font-size: 0.82rem; color: #666;
+      cursor: pointer; border: none; background: none; color: #777; transition: color 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+    .ptab.active { color: #fff; border-bottom-color: #fff; }
     #panel-body { flex: 1; overflow-y: auto; padding: 14px; }
 
-    .feed-card {
+    /* 앨범 카드 */
+    .album-card {
       background: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 10px;
       padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s;
     }
-    .feed-card:hover { border-color: #555; }
-    .feed-card.active { border-color: #ff0078; }
-    .feed-card .fc-name { font-size: 0.9rem; font-weight: 600; }
-    .feed-card .fc-tag  { font-size: 0.75rem; color: #666; margin-top: 3px; }
-    .feed-card-actions  { display: flex; gap: 6px; margin-top: 10px; }
+    .album-card:hover { border-color: #555; }
+    .album-card.active { border-color: #fff; }
+    .album-card .ac-name { font-size: 0.9rem; font-weight: 600; }
+    .album-card .ac-count { font-size: 0.75rem; color: #666; margin-top: 3px; }
+    .album-card-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+    /* 이미지 목록 */
+    .img-item {
+      display: flex; align-items: center; gap: 10px;
+      background: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 8px;
+      padding: 8px 10px; margin-bottom: 8px;
+    }
+    .img-item img { width: 48px; height: 48px; object-fit: cover; border-radius: 5px; flex-shrink: 0; }
+    .img-item .ii-info { flex: 1; min-width: 0; }
+    .img-item .ii-title { font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .img-item .ii-url   { font-size: 0.72rem; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .img-item-del {
+      background: none; border: none; color: #666; font-size: 1.1rem;
+      cursor: pointer; padding: 4px; flex-shrink: 0;
+    }
+    .img-item-del:hover { color: #e74c3c; }
+
+    .section-title {
+      font-size: 0.78rem; color: #666; margin: 14px 0 8px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
 
     .btn {
       border: none; cursor: pointer; border-radius: 6px;
       font-size: 0.8rem; padding: 5px 12px; transition: background 0.2s;
     }
-    .btn-primary   { background: #ff0078; color: #fff; }
-    .btn-primary:hover { background: #d4006a; }
+    .btn-primary   { background: #fff; color: #000; }
+    .btn-primary:hover { background: #ddd; }
     .btn-secondary { background: #2a2a2a; color: #ccc; }
     .btn-secondary:hover { background: #333; }
     .btn-danger    { background: #c0392b; color: #fff; }
     .btn-danger:hover { background: #a93226; }
     .btn-full { width: 100%; padding: 9px; margin-top: 4px; }
 
+    /* ── 모달 ── */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.85); z-index: 300; align-items: center; justify-content: center;
@@ -144,17 +168,20 @@
     .modal-overlay.open { display: flex; }
     .modal {
       background: #1a1a1a; border: 1px solid #333;
-      border-radius: 14px; padding: 28px; width: 90%; max-width: 400px;
+      border-radius: 14px; padding: 24px; width: 92%; max-width: 440px;
+      max-height: 90vh; overflow-y: auto;
     }
-    .modal h2 { margin-bottom: 20px; font-size: 1rem; }
-    .form-group { margin-bottom: 14px; }
-    .form-group label { display: block; font-size: 0.8rem; color: #999; margin-bottom: 6px; }
-    .form-group input {
+    .modal h2 { margin-bottom: 18px; font-size: 1rem; }
+    .form-group { margin-bottom: 13px; }
+    .form-group label { display: block; font-size: 0.8rem; color: #999; margin-bottom: 5px; }
+    .form-group input, .form-group textarea {
       width: 100%; background: #242424; border: 1px solid #3a3a3a;
-      color: #eee; padding: 9px 12px; border-radius: 8px; font-size: 0.9rem;
+      color: #eee; padding: 9px 12px; border-radius: 8px; font-size: 0.88rem;
+      font-family: inherit;
     }
-    .form-hint { font-size: 0.74rem; color: #555; margin-top: 5px; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+    .form-group textarea { height: 120px; resize: vertical; }
+    .form-hint { font-size: 0.73rem; color: #555; margin-top: 4px; line-height: 1.5; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -162,7 +189,7 @@
 <div id="hud">
   <div class="hud-left">
     <h1>📷</h1>
-    <span class="badge" id="badge">Flickr</span>
+    <span class="badge" id="badge">앨범 없음</span>
   </div>
   <button class="icon-btn" onclick="openPanel()">☰</button>
 </div>
@@ -176,119 +203,149 @@
 <div id="panel-overlay" onclick="closePanel()"></div>
 <div id="panel">
   <div id="panel-header">
-    <h2>피드 관리</h2>
+    <h2>관리</h2>
     <button class="icon-btn" onclick="closePanel()">✕</button>
   </div>
+  <div id="panel-tabs">
+    <button class="ptab active" data-tab="albums" onclick="switchTab('albums')">앨범</button>
+    <button class="ptab"        data-tab="images" onclick="switchTab('images')">이미지</button>
+  </div>
   <div id="panel-body">
-    <div id="feedList"></div>
-    <button class="btn btn-primary btn-full" onclick="openAddModal()">+ 태그 추가</button>
+    <!-- 앨범 탭 -->
+    <div id="tab-albums">
+      <div id="albumList"></div>
+      <button class="btn btn-primary btn-full" onclick="openAlbumModal()">+ 앨범 추가</button>
+    </div>
+    <!-- 이미지 탭 -->
+    <div id="tab-images" style="display:none">
+      <div class="section-title" id="imgTabTitle">이미지 목록</div>
+      <div id="imageList"></div>
+      <button class="btn btn-primary btn-full" onclick="openAddImgModal()">+ 이미지 추가</button>
+      <button class="btn btn-secondary btn-full" style="margin-top:6px" onclick="openBulkModal()">📋 여러 URL 한번에 추가</button>
+    </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="feedModal">
+<!-- 앨범 모달 -->
+<div class="modal-overlay" id="albumModal">
   <div class="modal">
-    <h2 id="modalTitle">태그 추가</h2>
+    <h2 id="albumModalTitle">앨범 추가</h2>
     <div class="form-group">
-      <label>이름</label>
-      <input id="inputName" type="text" placeholder="예: 필름카메라" />
-    </div>
-    <div class="form-group">
-      <label>Flickr 태그 (쉼표 구분)</label>
-      <input id="inputTags" type="text" placeholder="예: film camera,analog" />
-      <div class="form-hint">태그를 쉼표로 구분 — 예: film camera,35mm,analog photography</div>
+      <label>앨범 이름</label>
+      <input id="inputAlbumName" type="text" placeholder="예: 필름카메라 사진들" />
     </div>
     <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-      <button class="btn btn-primary"   onclick="saveFeed()">저장</button>
+      <button class="btn btn-secondary" onclick="closeAlbumModal()">취소</button>
+      <button class="btn btn-primary"   onclick="saveAlbum()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 이미지 추가 모달 -->
+<div class="modal-overlay" id="addImgModal">
+  <div class="modal">
+    <h2>이미지 추가</h2>
+    <div class="form-group">
+      <label>이미지 URL</label>
+      <input id="inputImgUrl" type="url" placeholder="https://..." />
+      <div class="form-hint">직접 링크되는 이미지 URL (jpg, png, gif, webp 등)</div>
+    </div>
+    <div class="form-group">
+      <label>제목 (선택)</label>
+      <input id="inputImgTitle" type="text" placeholder="사진 제목" />
+    </div>
+    <div class="form-group">
+      <label>메모 (선택)</label>
+      <input id="inputImgNote" type="text" placeholder="짧은 메모" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeAddImgModal()">취소</button>
+      <button class="btn btn-primary"   onclick="saveImg()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 일괄 추가 모달 -->
+<div class="modal-overlay" id="bulkModal">
+  <div class="modal">
+    <h2>여러 URL 한번에 추가</h2>
+    <div class="form-group">
+      <label>이미지 URL (한 줄에 하나씩)</label>
+      <textarea id="inputBulkUrls" placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg&#10;..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeBulkModal()">취소</button>
+      <button class="btn btn-primary"   onclick="saveBulk()">추가</button>
     </div>
   </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'flickr-scroller-v1';
-const FLICKR_FEED = 'https://api.flickr.com/services/feeds/photos_public.gne';
+const STORAGE_KEY = 'my-gallery-v1';
 
-const DEFAULT_FEEDS = [
-  { id: 'film-camera',     name: '필름카메라',       tags: 'film camera,analog photography' },
-  { id: 'filmphotography', name: '필름 포토그래피',  tags: 'film photography,35mm film' },
-  { id: 'lomography',      name: '로모그래피',        tags: 'lomography,lomo film' },
-  { id: 'leica',           name: '라이카 / 클래식',  tags: 'leica film,rangefinder film' },
-];
-
-let feeds      = loadFeeds();
-let currentId  = feeds[0]?.id;
-let images     = [];
+// 데이터 구조: { albums: [{id, name}], images: [{id, albumId, url, title, note}] }
+let data = loadData();
+let currentAlbumId = data.albums[0]?.id || null;
+let images = [];
 let currentIdx = 0;
-let loading    = false;
-let editingId  = null;
+let editingAlbumId = null;
+let activeTab = 'albums';
 
 let touchStartY = 0, dragOffset = 0, isDragging = false, wheelTimer = null;
 
-function loadFeeds() {
+function loadData() {
   try {
-    const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    return d.length ? d : JSON.parse(JSON.stringify(DEFAULT_FEEDS));
-  } catch { return JSON.parse(JSON.stringify(DEFAULT_FEEDS)); }
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (d?.albums) return d;
+  } catch {}
+  return { albums: [], images: [] };
 }
-function saveFeeds() { localStorage.setItem(STORAGE_KEY, JSON.stringify(feeds)); }
-function currentFeed() { return feeds.find(f => f.id === currentId); }
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 
-// ── Flickr 공개 피드 fetch ─────────────────────────────────
-// api.flickr.com/services/feeds 는 공식 공개 API로 CORS 허용
-async function fetchImages() {
-  const feed = currentFeed();
-  if (!feed) return [];
+function currentAlbum() { return data.albums.find(a => a.id === currentAlbumId); }
+function albumImages()   { return data.images.filter(i => i.albumId === currentAlbumId); }
 
-  const url = `${FLICKR_FEED}?tags=${encodeURIComponent(feed.tags)}&format=json&nojsoncallback=1&lang=ko-kr`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Flickr 오류: ${res.status}`);
-
-  const data = await res.json();
-  return (data.items || []).map(item => ({
-    src: (item.media?.m || '').replace('_m.jpg', '_b.jpg'),
-    title: item.title || '',
-    postUrl: item.link || '',
-    author: (item.author || '').replace(/.*\((.+)\)/, '$1'),
-  })).filter(i => i.src);
-}
-
-// ── 슬라이드 ───────────────────────────────────────────────
+// ── 뷰어 ───────────────────────────────────────────────────
 function makeSlide(img) {
   const el = document.createElement('div');
   el.className = 'slide';
   const image = new Image();
-  image.src = img.src;
+  image.src = img.url;
   image.alt = img.title || '';
-  image.onerror = () => {
-    if (image.src.includes('_b.jpg')) {
-      image.src = image.src.replace('_b.jpg', '_m.jpg');
-    } else {
-      el.remove();
-    }
-  };
-  const cap = document.createElement('div');
-  cap.className = 'slide-caption';
-  cap.innerHTML = `
-    <div class="title">${esc(img.title || '')}</div>
-    <a href="${img.postUrl}" target="_blank" rel="noopener">Flickr에서 보기 ↗${img.author ? ' · ' + esc(img.author) : ''}</a>`;
-  el.append(image, cap);
+  image.onerror = () => el.style.background = '#111';
+  if (img.title || img.note) {
+    const cap = document.createElement('div');
+    cap.className = 'slide-caption';
+    cap.innerHTML = `
+      ${img.title ? `<div class="title">${esc(img.title)}</div>` : ''}
+      ${img.note  ? `<div class="note">${esc(img.note)}</div>`  : ''}`;
+    el.append(image, cap);
+  } else {
+    el.appendChild(image);
+  }
   return el;
 }
 
-function makeSpecial(type, msg) {
+function makeEmpty() {
   const el = document.createElement('div');
-  el.className = 'slide'; el.dataset.special = type;
-  el.innerHTML = type === 'loading'
-    ? `<div class="slide-center"><div class="spinner"></div><span>불러오는 중...</span></div>`
-    : `<div class="slide-center">
-         <div class="error-text">${msg}</div>
-         <button class="btn btn-primary" style="margin-top:12px" onclick="retryLoad()">다시 시도</button>
-       </div>`;
+  el.className = 'slide'; el.dataset.special = 'empty';
+  el.innerHTML = `<div class="slide-center">
+    <div class="empty-icon">📭</div>
+    <div class="empty-msg">이미지가 없습니다.<br>☰ 버튼 → 이미지 탭에서 URL을 추가해보세요.</div>
+    <button class="btn btn-primary" onclick="openPanel();switchTab('images')">이미지 추가</button>
+  </div>`;
   return el;
 }
 
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function makeNoAlbum() {
+  const el = document.createElement('div');
+  el.className = 'slide'; el.dataset.special = 'noalbum';
+  el.innerHTML = `<div class="slide-center">
+    <div class="empty-icon">📂</div>
+    <div class="empty-msg">앨범이 없습니다.<br>☰ 버튼 → 앨범을 먼저 만들어보세요.</div>
+    <button class="btn btn-primary" onclick="openPanel()">앨범 만들기</button>
+  </div>`;
+  return el;
 }
 
 function positionAll(extra) {
@@ -301,7 +358,7 @@ function positionAll(extra) {
 
 function updateDots() {
   const el = document.getElementById('dots');
-  const max = 12, total = images.length;
+  const total = images.length, max = 12;
   const start = Math.max(0, Math.min(currentIdx - 6, total - max));
   el.innerHTML = '';
   for (let i = start; i < Math.min(start + max, total); i++) {
@@ -314,8 +371,8 @@ function updateCounter() {
   document.getElementById('counter').textContent = images.length ? `${currentIdx+1} / ${images.length}` : '';
 }
 function updateBadge() {
-  const f = currentFeed();
-  document.getElementById('badge').textContent = f ? f.name : '';
+  const a = currentAlbum();
+  document.getElementById('badge').textContent = a ? a.name : '앨범 없음';
 }
 
 function goTo(idx) {
@@ -325,48 +382,24 @@ function goTo(idx) {
 function goNext() { goTo(currentIdx + 1); }
 function goPrev() { goTo(currentIdx - 1); }
 
-async function loadImages() {
-  if (loading) return;
-  loading = true;
+function renderViewer() {
   const viewer = document.getElementById('viewer');
-  const ls = makeSpecial('loading');
-  viewer.appendChild(ls);
-  ls.style.transform = `translateY(${(viewer.children.length - 1 - currentIdx) * 100}vh)`;
+  viewer.innerHTML = '';
+  images = albumImages();
+  currentIdx = 0;
 
-  try {
-    const newImgs = await fetchImages();
-    viewer.removeChild(ls);
-    if (!newImgs.length) {
-      viewer.appendChild(makeSpecial('error', '이미지가 없습니다. 태그를 바꿔보세요.'));
-    } else {
-      images.push(...newImgs);
-      newImgs.forEach((img, i) => {
-        const s = makeSlide(img);
-        s.style.transform = `translateY(${(images.length - newImgs.length + i - currentIdx) * 100}vh)`;
-        viewer.appendChild(s);
-      });
-    }
-    updateDots(); updateCounter();
-  } catch (err) {
-    viewer.removeChild(ls);
-    const es = makeSpecial('error', err.message);
-    es.style.transform = `translateY(${(viewer.children.length - currentIdx) * 100}vh)`;
-    viewer.appendChild(es);
+  if (!currentAlbumId || !currentAlbum()) {
+    viewer.appendChild(makeNoAlbum());
+  } else if (!images.length) {
+    viewer.appendChild(makeEmpty());
+  } else {
+    images.forEach((img, i) => {
+      const s = makeSlide(img);
+      s.style.transform = `translateY(${i * 100}vh)`;
+      viewer.appendChild(s);
+    });
   }
-  loading = false;
-}
-
-function retryLoad() {
-  document.getElementById('viewer').querySelectorAll('[data-special]').forEach(e => e.remove());
-  loadImages();
-}
-
-async function resetAndLoad() {
-  images = []; currentIdx = 0; loading = false;
-  document.getElementById('viewer').innerHTML = '';
-  document.getElementById('dots').innerHTML = '';
-  updateCounter(); updateBadge();
-  await loadImages();
+  updateDots(); updateCounter(); updateBadge();
 }
 
 // ── 터치 / 휠 / 키보드 ────────────────────────────────────
@@ -393,69 +426,146 @@ window.addEventListener('wheel', e => {
 document.addEventListener('keydown', e => {
   if (['ArrowDown','ArrowRight'].includes(e.key)) goNext();
   if (['ArrowUp','ArrowLeft'].includes(e.key))    goPrev();
-  if (e.key === 'Escape') { closePanel(); closeModal(); }
+  if (e.key === 'Escape') { closePanel(); closeAlbumModal(); closeAddImgModal(); closeBulkModal(); }
 });
 
 // ── 패널 ───────────────────────────────────────────────────
 function openPanel() {
   document.getElementById('panel').classList.add('open');
   document.getElementById('panel-overlay').classList.add('open');
-  renderFeedList();
+  renderAlbumList(); renderImageList();
 }
 function closePanel() {
   document.getElementById('panel').classList.remove('open');
   document.getElementById('panel-overlay').classList.remove('open');
 }
-function renderFeedList() {
-  document.getElementById('feedList').innerHTML = feeds.map(f => `
-    <div class="feed-card ${f.id === currentId ? 'active' : ''}" onclick="switchFeed('${f.id}')">
-      <div class="fc-name">${esc(f.name)}</div>
-      <div class="fc-tag">${esc(f.tags)}</div>
-      <div class="feed-card-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-secondary" onclick="openEditModal('${f.id}')">수정</button>
-        <button class="btn btn-danger"    onclick="deleteFeed('${f.id}')">삭제</button>
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.ptab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('tab-albums').style.display = tab === 'albums' ? '' : 'none';
+  document.getElementById('tab-images').style.display = tab === 'images' ? '' : 'none';
+}
+
+function renderAlbumList() {
+  const el = document.getElementById('albumList');
+  if (!data.albums.length) {
+    el.innerHTML = '<p style="color:#555;font-size:0.85rem;margin-bottom:12px">앨범이 없습니다</p>';
+    return;
+  }
+  el.innerHTML = data.albums.map(a => {
+    const cnt = data.images.filter(i => i.albumId === a.id).length;
+    return `<div class="album-card ${a.id === currentAlbumId ? 'active' : ''}" onclick="switchAlbum('${a.id}')">
+      <div class="ac-name">${esc(a.name)}</div>
+      <div class="ac-count">이미지 ${cnt}장</div>
+      <div class="album-card-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-secondary" onclick="openAlbumModal('${a.id}')">수정</button>
+        <button class="btn btn-danger"    onclick="deleteAlbum('${a.id}')">삭제</button>
       </div>
+    </div>`;
+  }).join('');
+}
+
+function renderImageList() {
+  const a = currentAlbum();
+  document.getElementById('imgTabTitle').textContent = a ? `${a.name} 이미지` : '이미지 목록';
+  const imgs = albumImages();
+  const el = document.getElementById('imageList');
+  if (!imgs.length) {
+    el.innerHTML = '<p style="color:#555;font-size:0.85rem;margin-bottom:12px">이미지가 없습니다</p>';
+    return;
+  }
+  el.innerHTML = imgs.map(img => `
+    <div class="img-item">
+      <img src="${esc(img.url)}" onerror="this.style.background='#333'" />
+      <div class="ii-info">
+        <div class="ii-title">${esc(img.title || '제목 없음')}</div>
+        <div class="ii-url">${esc(img.url)}</div>
+      </div>
+      <button class="img-item-del" onclick="deleteImg('${img.id}')">✕</button>
     </div>`).join('');
 }
-function switchFeed(id) { currentId = id; closePanel(); resetAndLoad(); }
 
-// ── 모달 ───────────────────────────────────────────────────
-function openAddModal() {
-  editingId = null;
-  document.getElementById('modalTitle').textContent = '태그 추가';
-  document.getElementById('inputName').value = '';
-  document.getElementById('inputTags').value = '';
-  document.getElementById('feedModal').classList.add('open');
+function switchAlbum(id) {
+  currentAlbumId = id;
+  renderViewer(); renderAlbumList(); renderImageList();
 }
-function openEditModal(id) {
-  const f = feeds.find(x => x.id === id); if (!f) return;
-  editingId = id;
-  document.getElementById('modalTitle').textContent = '태그 수정';
-  document.getElementById('inputName').value = f.name;
-  document.getElementById('inputTags').value = f.tags;
-  document.getElementById('feedModal').classList.add('open');
+
+// ── 앨범 CRUD ──────────────────────────────────────────────
+function openAlbumModal(id) {
+  editingAlbumId = id || null;
+  const a = id ? data.albums.find(x => x.id === id) : null;
+  document.getElementById('albumModalTitle').textContent = id ? '앨범 수정' : '앨범 추가';
+  document.getElementById('inputAlbumName').value = a?.name || '';
+  document.getElementById('albumModal').classList.add('open');
 }
-function closeModal() { document.getElementById('feedModal').classList.remove('open'); }
-function saveFeed() {
-  const name = document.getElementById('inputName').value.trim();
-  const tags = document.getElementById('inputTags').value.trim();
-  if (!name || !tags) { alert('이름과 태그를 입력하세요'); return; }
-  if (editingId) {
-    const idx = feeds.findIndex(f => f.id === editingId);
-    if (idx !== -1) feeds[idx] = { ...feeds[idx], name, tags };
+function closeAlbumModal() { document.getElementById('albumModal').classList.remove('open'); }
+function saveAlbum() {
+  const name = document.getElementById('inputAlbumName').value.trim();
+  if (!name) { alert('앨범 이름을 입력하세요'); return; }
+  if (editingAlbumId) {
+    const a = data.albums.find(x => x.id === editingAlbumId);
+    if (a) a.name = name;
   } else {
-    feeds.push({ id: 'feed-' + Date.now(), name, tags });
+    const id = 'album-' + Date.now();
+    data.albums.push({ id, name });
+    if (!currentAlbumId) currentAlbumId = id;
   }
-  saveFeeds(); closeModal(); renderFeedList();
+  save(); closeAlbumModal(); renderAlbumList(); updateBadge();
 }
-function deleteFeed(id) {
-  if (!confirm('삭제할까요?')) return;
-  feeds = feeds.filter(f => f.id !== id); saveFeeds();
-  if (currentId === id) { currentId = feeds[0]?.id; resetAndLoad(); }
-  renderFeedList();
+function deleteAlbum(id) {
+  if (!confirm('앨범과 포함된 이미지를 모두 삭제할까요?')) return;
+  data.albums = data.albums.filter(a => a.id !== id);
+  data.images = data.images.filter(i => i.albumId !== id);
+  if (currentAlbumId === id) currentAlbumId = data.albums[0]?.id || null;
+  save(); renderAlbumList(); renderImageList(); renderViewer();
 }
 
-resetAndLoad();
+// ── 이미지 CRUD ────────────────────────────────────────────
+function openAddImgModal() {
+  document.getElementById('inputImgUrl').value = '';
+  document.getElementById('inputImgTitle').value = '';
+  document.getElementById('inputImgNote').value = '';
+  document.getElementById('addImgModal').classList.add('open');
+}
+function closeAddImgModal() { document.getElementById('addImgModal').classList.remove('open'); }
+function saveImg() {
+  const url   = document.getElementById('inputImgUrl').value.trim();
+  const title = document.getElementById('inputImgTitle').value.trim();
+  const note  = document.getElementById('inputImgNote').value.trim();
+  if (!url) { alert('URL을 입력하세요'); return; }
+  if (!currentAlbumId) { alert('앨범을 먼저 선택하세요'); return; }
+  data.images.push({ id: 'img-' + Date.now(), albumId: currentAlbumId, url, title, note });
+  save(); closeAddImgModal(); renderImageList(); renderViewer();
+}
+function deleteImg(id) {
+  data.images = data.images.filter(i => i.id !== id);
+  save(); renderImageList(); renderViewer();
+}
+
+function openBulkModal() {
+  document.getElementById('inputBulkUrls').value = '';
+  document.getElementById('bulkModal').classList.add('open');
+}
+function closeBulkModal() { document.getElementById('bulkModal').classList.remove('open'); }
+function saveBulk() {
+  if (!currentAlbumId) { alert('앨범을 먼저 선택하세요'); return; }
+  const urls = document.getElementById('inputBulkUrls').value
+    .split('\n').map(s => s.trim()).filter(s => s.startsWith('http'));
+  if (!urls.length) { alert('유효한 URL이 없습니다'); return; }
+  urls.forEach(url => {
+    data.images.push({ id: 'img-' + Date.now() + Math.random(), albumId: currentAlbumId, url, title: '', note: '' });
+  });
+  save(); closeBulkModal(); renderImageList(); renderViewer();
+  alert(`${urls.length}장 추가됐습니다.`);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── 시작 ───────────────────────────────────────────────────
+renderViewer();
 </script>
 </body>
 </html>
