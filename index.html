@@ -270,7 +270,26 @@ function loadSubs() {
 function saveSubs() { localStorage.setItem(STORAGE_KEY, JSON.stringify(subs)); }
 function currentSub() { return subs.find(s => s.id === currentId); }
 
-// ── Reddit fetch (클라이언트 직접 호출) ──────────────────
+// ── Reddit fetch ───────────────────────────────────────────
+const PROXIES = [
+  url => url,                                         // 직접 시도
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+];
+
+async function redditFetch(url) {
+  for (const proxy of PROXIES) {
+    try {
+      const res = await fetch(proxy(url), { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) continue;
+      const data = await res.json();
+      // allorigins wraps response in { contents: "..." }
+      return typeof data.contents === 'string' ? JSON.parse(data.contents) : data;
+    } catch (_) { continue; }
+  }
+  throw new Error('Reddit에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+}
+
 async function fetchRedditImages() {
   const sub = currentSub();
   if (!sub) return;
@@ -278,14 +297,9 @@ async function fetchRedditImages() {
   const params = new URLSearchParams({ limit: 25, raw_json: 1 });
   if (afterToken) params.set('after', afterToken);
 
-  // Reddit JSON API는 브라우저 CORS 허용
   const url = `https://www.reddit.com/r/${sub.subreddit}/${currentSort}.json?${params}`;
-  const res = await fetch(url, {
-    headers: { 'Accept': 'application/json' }
-  });
-  if (!res.ok) throw new Error(`Reddit 응답 오류: ${res.status}`);
+  const data = await redditFetch(url);
 
-  const data = await res.json();
   const listing = data?.data;
   afterToken = listing?.after || '';
   if (!afterToken) hasMore = false;
