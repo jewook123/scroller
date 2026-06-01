@@ -368,7 +368,11 @@ async function fetchImages(page) {
   if (!site) return [];
   const res = await fetch(`/api/images?galleryId=${site.galleryId}&galleryType=${site.galleryType}&page=${page}`);
   const data = await res.json();
-  if (data.error) throw new Error(data.error);
+  if (data.error) {
+    const err = new Error(data.error);
+    err.detail = data.setup || '';
+    throw err;
+  }
   return data.images || [];
 }
 
@@ -406,11 +410,12 @@ function buildLoadingSlide() {
   return slide;
 }
 
-function buildErrorSlide(msg) {
+function buildErrorSlide(msg, detail) {
   const slide = document.createElement('div');
   slide.className = 'slide';
   slide.dataset.special = 'error';
-  slide.innerHTML = `<div class="slide-error">${msg}<br><br><button class="btn btn-primary" onclick="retryLoad()">다시 시도</button></div>`;
+  const detailHtml = detail ? `<p style="margin-top:12px;font-size:0.8rem;color:#888;max-width:340px;line-height:1.6;">${detail}</p>` : '';
+  slide.innerHTML = `<div class="slide-error">${msg}${detailHtml}<br><br><button class="btn btn-primary" onclick="retryLoad()">다시 시도</button></div>`;
   return slide;
 }
 
@@ -502,7 +507,7 @@ async function loadMore() {
     updateCounter();
   } catch (err) {
     viewer.removeChild(loadingSlide);
-    const errSlide = buildErrorSlide('오류: ' + err.message);
+    const errSlide = buildErrorSlide('오류: ' + err.message, err.detail);
     errSlide.style.transform = `translateY(${(viewer.children.length - currentIdx) * 100}vh)`;
     viewer.appendChild(errSlide);
   }
