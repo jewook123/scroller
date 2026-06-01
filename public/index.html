@@ -6,309 +6,208 @@
   <title>필름 갤러리 스크롤러</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     html, body {
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-      color: #fff;
+      height: 100%; overflow: hidden;
+      background: #000; color: #fff;
       font-family: 'Segoe UI', sans-serif;
       user-select: none;
     }
 
     #viewer {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
       overflow: hidden;
     }
-
     .slide {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
       transition: transform 0.38s cubic-bezier(.4,0,.2,1);
-      will-change: transform;
-      background: #000;
+      will-change: transform; background: #000;
     }
-
     .slide img {
-      max-width: 100%;
-      max-height: 100vh;
-      object-fit: contain;
-      display: block;
-      pointer-events: none;
+      max-width: 100%; max-height: 100vh;
+      object-fit: contain; display: block; pointer-events: none;
     }
-
     .slide-caption {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
+      position: absolute; bottom: 0; left: 0; right: 0;
       padding: 60px 20px 24px;
       background: linear-gradient(transparent, rgba(0,0,0,0.75));
     }
     .slide-caption .title {
-      font-size: 0.95rem;
-      font-weight: 600;
-      margin-bottom: 6px;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+      font-size: 0.95rem; font-weight: 600; margin-bottom: 6px;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
     }
-    .slide-caption .meta {
-      font-size: 0.78rem;
-      color: #aaa;
-      text-decoration: none;
-    }
-    .slide-caption .meta:hover { color: #fff; }
+    .slide-caption a { font-size: 0.78rem; color: #aaa; text-decoration: none; }
+    .slide-caption a:hover { color: #fff; }
 
     .slide-center {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      color: #666;
-      text-align: center;
-      padding: 20px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 16px;
+      color: #666; text-align: center; padding: 30px;
     }
     .spinner {
       width: 40px; height: 40px;
-      border: 3px solid #333;
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      border: 3px solid #333; border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .error-text { color: #e74c3c; font-size: 0.88rem; max-width: 300px; line-height: 1.6; }
 
-    .error-text { color: #e74c3c; font-size: 0.9rem; max-width: 300px; line-height: 1.6; }
-
-    /* Top HUD */
+    /* HUD */
     #hud {
-      position: fixed;
-      top: 0; left: 0; right: 0;
+      position: fixed; top: 0; left: 0; right: 0;
       padding: 14px 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between;
       background: linear-gradient(rgba(0,0,0,0.55), transparent);
       z-index: 50;
     }
     .hud-left { display: flex; align-items: center; gap: 10px; }
     #hud h1 { font-size: 1rem; font-weight: 700; }
-    .subreddit-badge {
-      background: rgba(255,69,0,0.85);
-      color: #fff;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 12px;
+    .badge {
+      background: rgba(255,69,0,0.85); color: #fff;
+      font-size: 0.75rem; font-weight: 700;
+      padding: 3px 9px; border-radius: 12px;
     }
-
     .icon-btn {
-      background: rgba(255,255,255,0.12);
-      border: none;
-      color: #fff;
-      width: 38px; height: 38px;
-      border-radius: 50%;
-      font-size: 1rem;
-      cursor: pointer;
+      background: rgba(255,255,255,0.12); border: none; color: #fff;
+      width: 38px; height: 38px; border-radius: 50%;
+      font-size: 1rem; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: background 0.2s;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px); transition: background 0.2s;
     }
     .icon-btn:hover { background: rgba(255,255,255,0.22); }
 
     /* Sort tabs */
     #sortBar {
-      position: fixed;
-      top: 58px; left: 0; right: 0;
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      z-index: 50;
-      padding: 0 18px;
+      position: fixed; top: 58px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 8px;
+      z-index: 50; padding: 0 18px;
     }
     .sort-tab {
-      background: rgba(255,255,255,0.1);
-      border: none;
-      color: #ccc;
-      font-size: 0.78rem;
-      padding: 5px 14px;
-      border-radius: 20px;
-      cursor: pointer;
-      backdrop-filter: blur(4px);
-      transition: background 0.2s, color 0.2s;
+      background: rgba(255,255,255,0.1); border: none; color: #ccc;
+      font-size: 0.78rem; padding: 5px 14px; border-radius: 20px;
+      cursor: pointer; backdrop-filter: blur(4px); transition: background 0.2s, color 0.2s;
     }
-    .sort-tab.active {
-      background: #fff;
-      color: #000;
-      font-weight: 600;
-    }
+    .sort-tab.active { background: #fff; color: #000; font-weight: 600; }
 
-    /* Counter */
+    /* Counter & dots */
     #counter {
-      position: fixed;
-      bottom: 80px; right: 16px;
-      font-size: 0.78rem;
-      color: rgba(255,255,255,0.45);
-      z-index: 50;
+      position: fixed; bottom: 80px; right: 16px;
+      font-size: 0.78rem; color: rgba(255,255,255,0.45); z-index: 50;
     }
-
-    /* Progress dots */
     #dots {
-      position: fixed;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      z-index: 50;
+      position: fixed; right: 12px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 5px; z-index: 50;
     }
     .dot {
-      width: 5px; height: 5px;
-      border-radius: 50%;
+      width: 5px; height: 5px; border-radius: 50%;
       background: rgba(255,255,255,0.25);
       transition: background 0.2s, transform 0.2s;
     }
     .dot.active { background: #fff; transform: scale(1.6); }
 
-    /* Nav arrows (desktop) */
+    /* Nav arrows */
     .nav-arrow {
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 50;
-      background: rgba(255,255,255,0.08);
-      border: none; color: #fff;
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      font-size: 1.1rem;
-      cursor: pointer;
-      backdrop-filter: blur(4px);
-      transition: background 0.2s;
+      position: fixed; left: 50%; transform: translateX(-50%);
+      z-index: 50; background: rgba(255,255,255,0.08); border: none; color: #fff;
+      width: 40px; height: 40px; border-radius: 50%; font-size: 1.1rem;
+      cursor: pointer; backdrop-filter: blur(4px); transition: background 0.2s;
       display: flex; align-items: center; justify-content: center;
     }
     .nav-arrow:hover { background: rgba(255,255,255,0.2); }
     #arrowUp   { top: 110px; }
     #arrowDown { bottom: 14px; }
 
-    /* Side panel */
+    /* Panel */
     #panel {
-      position: fixed;
-      top: 0; right: -360px;
+      position: fixed; top: 0; right: -360px;
       width: 340px; height: 100%;
-      background: #111;
-      border-left: 1px solid #222;
-      z-index: 200;
-      transition: right 0.3s ease;
+      background: #111; border-left: 1px solid #222;
+      z-index: 200; transition: right 0.3s ease;
       display: flex; flex-direction: column;
     }
     #panel.open { right: 0; }
     #panel-overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 199;
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 199;
     }
     #panel-overlay.open { display: block; }
-
     #panel-header {
-      padding: 20px 18px 14px;
-      border-bottom: 1px solid #222;
+      padding: 20px 18px 14px; border-bottom: 1px solid #222;
       display: flex; align-items: center; justify-content: space-between;
     }
     #panel-header h2 { font-size: 1rem; }
     #panel-body { flex: 1; overflow-y: auto; padding: 14px; }
 
     .sub-card {
-      background: #1c1c1c;
-      border: 1px solid #2a2a2a;
-      border-radius: 10px;
-      padding: 12px 14px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      transition: border-color 0.2s;
+      background: #1c1c1c; border: 1px solid #2a2a2a;
+      border-radius: 10px; padding: 12px 14px;
+      margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s;
     }
     .sub-card:hover { border-color: #555; }
     .sub-card.active { border-color: #ff4500; }
     .sub-card .sc-name { font-size: 0.9rem; font-weight: 600; }
-    .sub-card .sc-desc { font-size: 0.75rem; color: #666; margin-top: 3px; }
-    .sub-card-actions { display: flex; gap: 6px; margin-top: 10px; }
+    .sub-card .sc-sub  { font-size: 0.75rem; color: #666; margin-top: 3px; }
+    .sub-card-actions  { display: flex; gap: 6px; margin-top: 10px; }
 
     .btn {
-      border: none; cursor: pointer;
-      border-radius: 6px; font-size: 0.8rem;
-      padding: 5px 12px; transition: background 0.2s;
+      border: none; cursor: pointer; border-radius: 6px;
+      font-size: 0.8rem; padding: 5px 12px; transition: background 0.2s;
     }
-    .btn-primary { background: #ff4500; color: #fff; }
+    .btn-primary   { background: #ff4500; color: #fff; }
     .btn-primary:hover { background: #e03d00; }
     .btn-secondary { background: #2a2a2a; color: #ccc; }
     .btn-secondary:hover { background: #333; }
-    .btn-danger { background: #c0392b; color: #fff; }
+    .btn-danger    { background: #c0392b; color: #fff; }
     .btn-danger:hover { background: #a93226; }
     .btn-full { width: 100%; padding: 9px; margin-top: 4px; }
 
     /* Modal */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.85);
-      z-index: 300; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85); z-index: 300;
+      align-items: center; justify-content: center;
     }
     .modal-overlay.open { display: flex; }
     .modal {
       background: #1a1a1a; border: 1px solid #333;
-      border-radius: 14px; padding: 28px;
-      width: 90%; max-width: 400px;
+      border-radius: 14px; padding: 28px; width: 90%; max-width: 400px;
     }
     .modal h2 { margin-bottom: 20px; font-size: 1rem; }
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 0.8rem; color: #999; margin-bottom: 6px; }
-    .form-group input, .form-group select {
+    .form-group input {
       width: 100%; background: #242424; border: 1px solid #3a3a3a;
       color: #eee; padding: 9px 12px; border-radius: 8px; font-size: 0.9rem;
     }
-    .form-hint { font-size: 0.75rem; color: #666; margin-top: 5px; }
+    .form-hint { font-size: 0.75rem; color: #555; margin-top: 5px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
   </style>
 </head>
 <body>
 
-<!-- HUD -->
 <div id="hud">
   <div class="hud-left">
     <h1>📷</h1>
-    <span class="subreddit-badge" id="subredditBadge">r/analog</span>
+    <span class="badge" id="badge">r/analog</span>
   </div>
   <button class="icon-btn" onclick="openPanel()">☰</button>
 </div>
 
-<!-- Sort tabs -->
 <div id="sortBar">
   <button class="sort-tab active" data-sort="hot">🔥 hot</button>
   <button class="sort-tab" data-sort="new">🆕 new</button>
   <button class="sort-tab" data-sort="top">👑 top</button>
 </div>
 
-<!-- Viewer -->
 <div id="viewer"></div>
-
-<!-- Counter & dots -->
 <div id="counter"></div>
 <div id="dots"></div>
-
-<!-- Nav arrows -->
-<button class="nav-arrow" id="arrowUp" onclick="goPrev()">▲</button>
+<button class="nav-arrow" id="arrowUp"   onclick="goPrev()">▲</button>
 <button class="nav-arrow" id="arrowDown" onclick="goNext()">▼</button>
 
-<!-- Panel overlay -->
 <div id="panel-overlay" onclick="closePanel()"></div>
-
-<!-- Side panel -->
 <div id="panel">
   <div id="panel-header">
     <h2>서브레딧 관리</h2>
@@ -320,14 +219,13 @@
   </div>
 </div>
 
-<!-- Modal -->
 <div class="modal-overlay" id="subModal">
   <div class="modal">
     <h2 id="modalTitle">서브레딧 추가</h2>
     <div class="form-group">
       <label>서브레딧 이름</label>
       <input id="inputSub" type="text" placeholder="예: analog" />
-      <div class="form-hint">r/ 없이 이름만 입력하세요</div>
+      <div class="form-hint">r/ 없이 이름만 입력</div>
     </div>
     <div class="form-group">
       <label>표시 이름 (선택)</label>
@@ -341,98 +239,130 @@
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────────
+// ── 설정 ───────────────────────────────────────────────────
 const STORAGE_KEY = 'reddit-scroller-subs';
 const DEFAULT_SUBS = [
-  { id: 'analog',         label: '아날로그 필름',      subreddit: 'analog' },
-  { id: 'filmphotography',label: '필름 포토그래피',    subreddit: 'filmphotography' },
-  { id: 'analog_japan',   label: '필름 (일본)',         subreddit: 'analog_japan' },
+  { id: 'analog',          label: '아날로그 필름',   subreddit: 'analog' },
+  { id: 'filmphotography', label: '필름 포토그래피', subreddit: 'filmphotography' },
+  { id: 'analog_japan',    label: '아날로그 (일본)', subreddit: 'analog_japan' },
 ];
 
-let subs = loadSubs();
-let currentId = subs[0]?.id;
-let currentSort = 'hot';
-let images = [];
+let subs       = loadSubs();
+let currentId  = subs[0]?.id;
+let currentSort= 'hot';
+let images     = [];
 let currentIdx = 0;
-let loadingPage = false;
-let fetchedPage = 0;
-let hasMore = true;
-let editingId = null;
+let loading    = false;
+let fetchedPage= 0;
+let afterToken = '';   // Reddit pagination cursor
+let hasMore    = true;
+let editingId  = null;
 
-// touch
-let touchStartY = 0;
-let dragOffset = 0;
-let isDragging = false;
-let wheelTimer = null;
+let touchStartY = 0, dragOffset = 0, isDragging = false, wheelTimer = null;
 
 // ── Storage ────────────────────────────────────────────────
 function loadSubs() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const saved = raw ? JSON.parse(raw) : [];
-    return saved.length ? saved : [...DEFAULT_SUBS];
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return d.length ? d : [...DEFAULT_SUBS];
   } catch { return [...DEFAULT_SUBS]; }
 }
 function saveSubs() { localStorage.setItem(STORAGE_KEY, JSON.stringify(subs)); }
-
 function currentSub() { return subs.find(s => s.id === currentId); }
 
-// ── API ────────────────────────────────────────────────────
-async function fetchImages(page) {
+// ── Reddit fetch (클라이언트 직접 호출) ──────────────────
+async function fetchRedditImages() {
   const sub = currentSub();
-  if (!sub) return [];
-  const res = await fetch(`/api/images?subreddit=${sub.subreddit}&sort=${currentSort}&page=${page}`);
+  if (!sub) return;
+
+  const params = new URLSearchParams({ limit: 25, raw_json: 1 });
+  if (afterToken) params.set('after', afterToken);
+
+  // Reddit JSON API는 브라우저 CORS 허용
+  const url = `https://www.reddit.com/r/${sub.subreddit}/${currentSort}.json?${params}`;
+  const res = await fetch(url, {
+    headers: { 'Accept': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`Reddit 응답 오류: ${res.status}`);
+
   const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data.images || [];
+  const listing = data?.data;
+  afterToken = listing?.after || '';
+  if (!afterToken) hasMore = false;
+
+  const newImages = [];
+  for (const post of listing?.children || []) {
+    const d = post.data;
+    if (d.over_18) continue;
+
+    // 단일 이미지
+    if (d.url?.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)) {
+      newImages.push({ src: d.url, title: d.title, postUrl: 'https://www.reddit.com' + d.permalink });
+      continue;
+    }
+
+    // Reddit 갤러리 (여러 이미지)
+    if (d.is_gallery && d.media_metadata) {
+      for (const item of Object.values(d.media_metadata)) {
+        if (item.status !== 'valid') continue;
+        const src = item.s?.u;
+        if (src) newImages.push({ src, title: d.title, postUrl: 'https://www.reddit.com' + d.permalink });
+      }
+      continue;
+    }
+
+    // i.redd.it 직접 링크
+    if (d.url?.includes('i.redd.it')) {
+      newImages.push({ src: d.url, title: d.title, postUrl: 'https://www.reddit.com' + d.permalink });
+    }
+  }
+  return newImages;
 }
 
-// ── Slides ─────────────────────────────────────────────────
-function buildSlide(img) {
+// ── 슬라이드 빌더 ──────────────────────────────────────────
+function makeSlide(img) {
   const el = document.createElement('div');
   el.className = 'slide';
-  const image = document.createElement('img');
+  const image = new Image();
   image.src = img.src;
   image.alt = img.title || '';
   image.onerror = () => el.remove();
-
-  const caption = document.createElement('div');
-  caption.className = 'slide-caption';
-  caption.innerHTML = `
-    <div class="title">${escHtml(img.title || '')}</div>
-    <a class="meta" href="${img.postUrl}" target="_blank" rel="noopener">Reddit에서 보기 ↗</a>
-  `;
-  el.appendChild(image);
-  el.appendChild(caption);
+  const cap = document.createElement('div');
+  cap.className = 'slide-caption';
+  cap.innerHTML = `<div class="title">${esc(img.title||'')}</div>
+    <a href="${img.postUrl}" target="_blank" rel="noopener">Reddit에서 보기 ↗</a>`;
+  el.append(image, cap);
   return el;
 }
 
-function buildSpecialSlide(type, msg) {
+function makeSpecial(type, msg) {
   const el = document.createElement('div');
-  el.className = 'slide';
-  el.dataset.special = type;
-  if (type === 'loading') {
-    el.innerHTML = `<div class="slide-center"><div class="spinner"></div><span style="color:#666">불러오는 중...</span></div>`;
-  } else {
-    el.innerHTML = `<div class="slide-center"><div class="error-text">${msg}</div><button class="btn btn-primary" style="margin-top:8px" onclick="retryLoad()">다시 시도</button></div>`;
-  }
+  el.className = 'slide'; el.dataset.special = type;
+  el.innerHTML = type === 'loading'
+    ? `<div class="slide-center"><div class="spinner"></div><span>불러오는 중...</span></div>`
+    : `<div class="slide-center"><div class="error-text">${msg}</div>
+       <button class="btn btn-primary" style="margin-top:10px" onclick="retryLoad()">다시 시도</button></div>`;
   return el;
 }
 
-function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-function positionAll() {
-  [...document.getElementById('viewer').children].forEach((slide, i) => {
-    slide.style.transform = `translateY(${(i - currentIdx) * 100}vh)`;
+// ── 위치 계산 ──────────────────────────────────────────────
+function positionAll(extraOffset) {
+  [...document.getElementById('viewer').children].forEach((s, i) => {
+    const base = `${(i - currentIdx) * 100}vh`;
+    s.style.transform = extraOffset != null
+      ? `translateY(calc(${base} + ${extraOffset}px))`
+      : `translateY(${base})`;
   });
-  updateDots();
-  updateCounter();
+  updateDots(); updateCounter();
 }
 
 function updateDots() {
   const dots = document.getElementById('dots');
-  const total = images.length;
-  const max = 12;
+  const max = 12, total = images.length;
   const start = Math.max(0, Math.min(currentIdx - 6, total - max));
   dots.innerHTML = '';
   for (let i = start; i < Math.min(start + max, total); i++) {
@@ -441,47 +371,43 @@ function updateDots() {
     dots.appendChild(d);
   }
 }
-
 function updateCounter() {
-  document.getElementById('counter').textContent = images.length ? `${currentIdx + 1} / ${images.length}` : '';
+  document.getElementById('counter').textContent = images.length ? `${currentIdx+1} / ${images.length}` : '';
 }
-
 function updateBadge() {
-  const sub = currentSub();
-  document.getElementById('subredditBadge').textContent = sub ? `r/${sub.subreddit}` : '';
+  const s = currentSub();
+  document.getElementById('badge').textContent = s ? `r/${s.subreddit}` : '';
 }
 
-// ── Navigation ─────────────────────────────────────────────
+// ── 이동 ───────────────────────────────────────────────────
 function goTo(idx) {
   if (idx < 0 || idx >= images.length) return;
   currentIdx = idx;
   positionAll();
-  if (currentIdx >= images.length - 4 && hasMore && !loadingPage) loadMore();
+  if (currentIdx >= images.length - 4 && hasMore && !loading) loadMore();
 }
 function goNext() { goTo(currentIdx + 1); }
 function goPrev() { goTo(currentIdx - 1); }
 
-// ── Load ───────────────────────────────────────────────────
+// ── 로딩 ───────────────────────────────────────────────────
 async function loadMore() {
-  if (loadingPage || !hasMore) return;
-  loadingPage = true;
+  if (loading || !hasMore) return;
+  loading = true;
   const viewer = document.getElementById('viewer');
-  const loadSlide = buildSpecialSlide('loading');
+  const loadSlide = makeSpecial('loading');
   viewer.appendChild(loadSlide);
   loadSlide.style.transform = `translateY(${(viewer.children.length - 1 - currentIdx) * 100}vh)`;
 
   try {
-    const nextPage = fetchedPage + 1;
-    const newImgs = await fetchImages(nextPage);
+    const newImgs = await fetchRedditImages();
     viewer.removeChild(loadSlide);
-    if (!newImgs.length) {
+    if (!newImgs?.length) {
       hasMore = false;
     } else {
-      fetchedPage = nextPage;
       const offset = images.length;
       images.push(...newImgs);
       newImgs.forEach((img, i) => {
-        const s = buildSlide(img);
+        const s = makeSlide(img);
         s.style.transform = `translateY(${(offset + i - currentIdx) * 100}vh)`;
         viewer.appendChild(s);
       });
@@ -489,29 +415,29 @@ async function loadMore() {
     updateDots(); updateCounter();
   } catch (err) {
     viewer.removeChild(loadSlide);
-    const errSlide = buildSpecialSlide('error', err.message);
+    const errSlide = makeSpecial('error', err.message);
     errSlide.style.transform = `translateY(${(viewer.children.length - currentIdx) * 100}vh)`;
     viewer.appendChild(errSlide);
   }
-  loadingPage = false;
+  loading = false;
 }
 
 function retryLoad() {
   hasMore = true;
-  const viewer = document.getElementById('viewer');
-  viewer.querySelectorAll('[data-special="error"]').forEach(el => el.remove());
+  document.getElementById('viewer').querySelectorAll('[data-special="error"]').forEach(e => e.remove());
   loadMore();
 }
 
 async function resetAndLoad() {
-  images = []; currentIdx = 0; fetchedPage = 0; hasMore = true; loadingPage = false;
+  images = []; currentIdx = 0; fetchedPage = 0;
+  afterToken = ''; hasMore = true; loading = false;
   document.getElementById('viewer').innerHTML = '';
   document.getElementById('dots').innerHTML = '';
   updateCounter(); updateBadge();
   await loadMore();
 }
 
-// ── Sort tabs ──────────────────────────────────────────────
+// ── 정렬 탭 ────────────────────────────────────────────────
 document.getElementById('sortBar').addEventListener('click', e => {
   const tab = e.target.closest('.sort-tab');
   if (!tab) return;
@@ -521,20 +447,17 @@ document.getElementById('sortBar').addEventListener('click', e => {
   resetAndLoad();
 });
 
-// ── Touch / Wheel / Keyboard ───────────────────────────────
+// ── 터치 / 휠 / 키보드 ────────────────────────────────────
 const viewer = document.getElementById('viewer');
 
 viewer.addEventListener('touchstart', e => {
-  touchStartY = e.touches[0].clientY;
-  isDragging = true; dragOffset = 0;
+  touchStartY = e.touches[0].clientY; isDragging = true; dragOffset = 0;
 }, { passive: true });
 
 viewer.addEventListener('touchmove', e => {
   if (!isDragging) return;
   dragOffset = e.touches[0].clientY - touchStartY;
-  [...viewer.children].forEach((slide, i) => {
-    slide.style.transform = `translateY(calc(${(i - currentIdx) * 100}vh + ${dragOffset}px))`;
-  });
+  positionAll(dragOffset);
 }, { passive: true });
 
 viewer.addEventListener('touchend', () => {
@@ -554,11 +477,11 @@ window.addEventListener('wheel', e => {
 
 document.addEventListener('keydown', e => {
   if (['ArrowDown','ArrowRight'].includes(e.key)) goNext();
-  if (['ArrowUp','ArrowLeft'].includes(e.key)) goPrev();
+  if (['ArrowUp','ArrowLeft'].includes(e.key))   goPrev();
   if (e.key === 'Escape') { closePanel(); closeModal(); }
 });
 
-// ── Panel ──────────────────────────────────────────────────
+// ── 패널 ───────────────────────────────────────────────────
 function openPanel() {
   document.getElementById('panel').classList.add('open');
   document.getElementById('panel-overlay').classList.add('open');
@@ -568,27 +491,20 @@ function closePanel() {
   document.getElementById('panel').classList.remove('open');
   document.getElementById('panel-overlay').classList.remove('open');
 }
-
 function renderSubList() {
   document.getElementById('subList').innerHTML = subs.map(s => `
-    <div class="sub-card ${s.id === currentId ? 'active' : ''}" onclick="switchSub('${s.id}')">
-      <div class="sc-name">${escHtml(s.label || s.subreddit)}</div>
-      <div class="sc-desc">r/${escHtml(s.subreddit)}</div>
+    <div class="sub-card ${s.id===currentId?'active':''}" onclick="switchSub('${s.id}')">
+      <div class="sc-name">${esc(s.label||s.subreddit)}</div>
+      <div class="sc-sub">r/${esc(s.subreddit)}</div>
       <div class="sub-card-actions" onclick="event.stopPropagation()">
         <button class="btn btn-secondary" onclick="openEditModal('${s.id}')">수정</button>
-        <button class="btn btn-danger" onclick="deleteSub('${s.id}')">삭제</button>
+        <button class="btn btn-danger"    onclick="deleteSub('${s.id}')">삭제</button>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
+function switchSub(id) { currentId = id; closePanel(); resetAndLoad(); }
 
-function switchSub(id) {
-  currentId = id;
-  closePanel();
-  resetAndLoad();
-}
-
-// ── Modal ──────────────────────────────────────────────────
+// ── 모달 ───────────────────────────────────────────────────
 function openAddModal() {
   editingId = null;
   document.getElementById('modalTitle').textContent = '서브레딧 추가';
@@ -596,24 +512,19 @@ function openAddModal() {
   document.getElementById('inputLabel').value = '';
   document.getElementById('subModal').classList.add('open');
 }
-
 function openEditModal(id) {
-  const s = subs.find(x => x.id === id);
-  if (!s) return;
+  const s = subs.find(x => x.id === id); if (!s) return;
   editingId = id;
   document.getElementById('modalTitle').textContent = '서브레딧 수정';
   document.getElementById('inputSub').value = s.subreddit;
   document.getElementById('inputLabel').value = s.label || '';
   document.getElementById('subModal').classList.add('open');
 }
-
 function closeModal() { document.getElementById('subModal').classList.remove('open'); }
-
 function saveSub() {
   const subreddit = document.getElementById('inputSub').value.replace(/^r\//,'').trim();
   const label = document.getElementById('inputLabel').value.trim() || subreddit;
   if (!subreddit) { alert('서브레딧 이름을 입력하세요'); return; }
-
   if (editingId) {
     const idx = subs.findIndex(s => s.id === editingId);
     if (idx !== -1) subs[idx] = { ...subs[idx], subreddit, label };
@@ -622,16 +533,14 @@ function saveSub() {
   }
   saveSubs(); closeModal(); renderSubList();
 }
-
 function deleteSub(id) {
   if (!confirm('삭제할까요?')) return;
-  subs = subs.filter(s => s.id !== id);
-  saveSubs();
+  subs = subs.filter(s => s.id !== id); saveSubs();
   if (currentId === id) { currentId = subs[0]?.id; resetAndLoad(); }
   renderSubList();
 }
 
-// ── Init ───────────────────────────────────────────────────
+// ── 시작 ───────────────────────────────────────────────────
 resetAndLoad();
 </script>
 </body>
