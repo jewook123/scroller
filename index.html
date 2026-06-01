@@ -268,17 +268,12 @@ async function fetchImages() {
   const params = new URLSearchParams({ limit: 25, raw_json: 1 });
   if (afterToken) params.set('after', afterToken);
 
-  // old.reddit.com JSON endpoint — 브라우저에서 CORS 허용
-  const url = `https://old.reddit.com/r/${sub.subreddit}/${currentSort}.json?${params}`;
+  const redditUrl = `https://www.reddit.com/r/${sub.subreddit}/${currentSort}.json?${params}`;
+  // corsproxy.io: 브라우저용 CORS 프록시
+  const url = `https://corsproxy.io/?url=${encodeURIComponent(redditUrl)}`;
 
-  const res = await fetch(url, {
-    headers: {
-      'Accept': 'application/json',
-    },
-    mode: 'cors',
-  });
-
-  if (!res.ok) throw new Error(`Reddit 오류 (${res.status}) — 잠시 후 다시 시도해주세요.`);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`오류 (${res.status}) — 잠시 후 다시 시도해주세요.`);
 
   const json = await res.json();
   const listing = json?.data;
